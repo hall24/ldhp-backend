@@ -1,0 +1,44 @@
+{
+  "name": "ldhp-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Living Data Home Platform backend: R0 scaffold and MCP spike",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:seed": "tsx src/db/seed-cli.ts",
+    "openapi:export": "tsx scripts/export-openapi.ts",
+    "mcp:spike": "tsx src/mcp/stdio.ts"
+  },
+  "dependencies": {
+    "@clerk/backend": "^3.27.0",
+    "@fastify/swagger": "^9.9.3",
+    "@fastify/swagger-ui": "^6.1.3",
+    "@fastify/type-provider-typebox": "^5.2.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@sinclair/typebox": "^0.34.52",
+    "drizzle-orm": "^0.45.4",
+    "fastify": "^5.12.8",
+    "fastify-plugin": "^5.1.0",
+    "pg": "^8.23.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.15",
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.7"
+  }
+}

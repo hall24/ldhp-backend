@@ -1,0 +1,94 @@
+import { and, asc, eq, gt, isNull, or } from 'drizzle-orm';
+import { customers } from '../db/schema.js';
+import { recordAudit } from './audit.js';
+import type { ScopedContext } from './context.js';
+import { decodeCursor, encodeCursor } from '../lib/cursor.js';
+
+export type CustomerRow = typeof customers.$inferSelect;
+
+export interface CustomerInput {
+  displayName: string;
+  email?: string | null;
+  phone?: string | null;
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  city?: string | null;
+  region?: string | null;
+  postalCode?: string | null;
+  notes?: string | null;
+}
+
+export function toCustomerDto(c: CustomerRow) {
+  return {
+    id: c.id,
+    display_name: c.displayName,
+    email: c.email,
+    phone: c.phone,
+    address: {
+      line1: c.addressLine1,
+      line2: c.addressLine2,
+      city: c.city,
+      region: c.region,
+      postal_code: c.postalCode,
+    },
+    suppressed: c.suppressed,
+    notes: c.notes,
+    created_at: c.createdAt.toISOString(),
+    updated_at: c.updatedAt.toISOString(),
+  };
+}
+
+/** Every customer read goes through this predicate: owned by the caller's org, not deleted. */
+const scoped = (ctx: ScopedContext) =>
+  and(eq(customers.organizationId, ctx.organizationId), isNull(customers.deletedAt));
+
+export async function getCustomer(ctx: ScopedContext, id: string): Promise<CustomerRow | null> {
+  const rows = await ctx.db
+    .select()
+    .from(customers)
+    .where(and(scoped(ctx), eq(customers.id, id)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function listCustomers(ctx: ScopedContext, opts: { limit: number; cursor?: string }) {
+  const c = opts.cursor ? decodeCursor(opts.cursor) : null;
+  const after = c
+    ? or(
+        gt(customers.createdAt, new Date(c.t)),
+        and(eq(customers.createdAt, new Date(c.t)), gt(customers.id, c.id)),
+      )
+    : undefined;
+  const rows = await ctx.db
+    .select()
+    .from(customers)
+    .where(and(scoped(ctx), after))
+    .orderBy(asc(customers.createdAt), asc(customers.id))
+    .limit(opts.limit + 1);
+  const page = rows.slice(0, opts.limit);
+  const last = page[page.length - 1];
+  return {
+    data: page,
+    nextCursor: rows.length > opts.limit && last ? encodeCursor(last.createdAt, last.id) : null,
+  };
+}
+
+export async function createCustomer(ctx: ScopedContext, input: CustomerInput): Promise<CustomerRow> {
+  return ctx.db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(customers)
+      .values({ ...input, organizationId: ctx.organizationId, createdBy: ctx.actor.accountId })
+      .returning();
+    await recordAudit(tx as unknown as typeof ctx.db, {
+      actor: ctx.actor,
+      organizationId: ctx.organizationId,
+      action: 'customer.created',
+      recordType: 'customer',
+      recordId: row!.id,
+      requestId: ctx.requestId,
+      // Audit stores field presence for contact details, not the values themselves.
+      after: { display_name: row!.displayName, has_email: !!row!.email, has_phone: !!row!.phone },
+    });
+    return row!;
+  });
+}
