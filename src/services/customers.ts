@@ -92,3 +92,80 @@ export async function createCustomer(ctx: ScopedContext, input: CustomerInput): 
     return row!;
   });
 }
+
+export type CustomerPatch = Partial<CustomerInput> & { suppressed?: boolean };
+
+/** Audit view of a customer: contact details as presence flags, never values. */
+const auditView = (c: CustomerRow) => ({
+  display_name: c.displayName,
+  has_email: !!c.email,
+  has_phone: !!c.phone,
+  has_address: !!(c.addressLine1 || c.city || c.postalCode),
+  suppressed: c.suppressed,
+});
+
+/**
+ * Edit a customer, including suppressing them from the due queue (PRD §4 step 4).
+ * Returns null when the customer is not in the caller's org.
+ */
+export async function updateCustomer(
+  ctx: ScopedContext,
+  id: string,
+  patch: CustomerPatch,
+): Promise<CustomerRow | null> {
+  return ctx.db.transaction(async (txRaw) => {
+    const tx = txRaw as unknown as typeof ctx.db;
+    const [before] = await tx
+      .select()
+      .from(customers)
+      .where(and(scoped(ctx), eq(customers.id, id)))
+      .for('update');
+    if (!before) return null;
+    const [after] = await tx
+      .update(customers)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(and(scoped(ctx), eq(customers.id, id)))
+      .returning();
+    const changed = Object.keys(patch);
+    const suppressionChanged = patch.suppressed !== undefined && patch.suppressed !== before.suppressed;
+    await recordAudit(tx, {
+      actor: ctx.actor,
+      organizationId: ctx.organizationId,
+      action: suppressionChanged
+        ? after!.suppressed
+          ? 'customer.suppressed'
+          : 'customer.unsuppressed'
+        : 'customer.updated',
+      recordType: 'customer',
+      recordId: id,
+      requestId: ctx.requestId,
+      before: auditView(before),
+      after: auditView(after!),
+      metadata: { changed_fields: changed },
+    });
+    return after!;
+  });
+}
+
+/** Soft delete. Service history stays for audit; the customer disappears from lists and the due queue. */
+export async function deleteCustomer(ctx: ScopedContext, id: string): Promise<boolean> {
+  return ctx.db.transaction(async (txRaw) => {
+    const tx = txRaw as unknown as typeof ctx.db;
+    const [row] = await tx
+      .update(customers)
+      .set({ deletedAt: new Date(), updatedAt: new Date() })
+      .where(and(scoped(ctx), eq(customers.id, id)))
+      .returning();
+    if (!row) return false;
+    await recordAudit(tx, {
+      actor: ctx.actor,
+      organizationId: ctx.organizationId,
+      action: 'customer.deleted',
+      recordType: 'customer',
+      recordId: id,
+      requestId: ctx.requestId,
+      before: auditView(row),
+    });
+    return true;
+  });
+}

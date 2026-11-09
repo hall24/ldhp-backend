@@ -27,6 +27,7 @@ import {
   ServiceRecord,
   ServiceRecordCreate,
 } from './schemas.js';
+import { workspaceRoutes } from './workspace.js';
 
 const secured = [{ bearerAuth: [] }];
 
@@ -314,4 +315,6 @@ export const v1Routes: FastifyPluginAsyncTypebox<{ db: Db }> = async (app, { db 
       };
     },
   );
+
+  await app.register(workspaceRoutes, { db });
 };

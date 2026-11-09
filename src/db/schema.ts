@@ -78,7 +78,9 @@ export const accounts = pgTable('accounts', {
 });
 
 /** A pro business workspace: the tenant boundary. */
-export const organizations = pgTable('organizations', {
+export const organizations = pgTable(
+  'organizations',
+  {
   id: id(),
   /** Optional link to a Clerk Organization; authorization still uses `memberships`. */
   clerkOrgId: text('clerk_org_id').unique(),
@@ -86,10 +88,22 @@ export const organizations = pgTable('organizations', {
   timeZone: text('time_zone').notNull().default('America/New_York'),
   /** Sender identity shown on outreach (PRD §4 step 1). */
   messageFromName: text('message_from_name'),
+  /** Service types the business offers, e.g. "gutter_cleaning" (PRD §4 step 1). */
+  serviceTypes: text('service_types')
+    .array()
+    .notNull()
+    .default(sql`'{}'::text[]`),
+  /** Free-text service area, e.g. "Bergen County, NJ". */
+  serviceArea: text('service_area'),
+  createdBy: uuid('created_by').references(() => accounts.id),
+  /** Idempotency-Key of the create request, so a retried signup can't make two workspaces. */
+  creationKey: text('creation_key'),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
-});
+},
+(t) => [uniqueIndex('organizations_creation_key_uq').on(t.createdBy, t.creationKey)],
+);
 
 export const memberships = pgTable(
   'memberships',

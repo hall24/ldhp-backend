@@ -11,7 +11,7 @@ Tests run against an in-process Postgres (PGlite), so no database is needed to r
 
 ```bash
 npm install
-npm test                 # 33 tests, no external services
+npm test                 # 50 tests, no external services
 cp .env.example .env     # fill in dev values from the dev Key Vault
 npm run db:migrate       # apply drizzle/ migrations (uses DATABASE_MIGRATION_URL)
 npm run db:seed          # synthetic test data (refuses NODE_ENV=production)
@@ -50,6 +50,11 @@ Contract: [`openapi/openapi.json`](openapi/openapi.json), regenerated with `npm 
 | GET/POST | `/v1/customers/{id}/service-records` | `next_due_on = completed_on + interval_days` |
 | GET | `/v1/due-queue?within_days=30` | org time zone, excludes suppressed |
 | GET | `/v1/audit-events` | owners only |
+| POST | `/v1/organizations` | self-serve workspace setup; caller becomes owner; idempotent |
+| GET / PATCH | `/v1/organization` | workspace settings (time zone, sender name, service types, area); PATCH owners only |
+| PATCH | `/v1/customers/{id}` | partial edit, incl. `suppressed` |
+| DELETE | `/v1/customers/{id}` | owners only; soft delete |
+| PATCH / DELETE | `/v1/customers/{id}/service-records/{recordId}` | correct dates (due date recomputed or set directly); soft delete |
 
 Errors always look like `{ "error": { "code", "message", "request_id" } }`.
 
@@ -91,5 +96,4 @@ Read from environment variables only. Real values live in Azure Key Vault (separ
 
 ## Not yet built (R1)
 
-Outreach sending + consent enforcement at dispatch, signed intake links, CSV import/export,
-staff invites, Stripe Billing, SendGrid, scheduler, file storage, support access, retention jobs.
+Staff invites, outreach sending + consent enforcement at dispatch, signed intake links, CSV import/export, Stripe Billing, SendGrid, scheduler, file storage, support access, retention jobs.
