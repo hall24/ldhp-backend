@@ -1,6 +1,6 @@
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
-import { and, desc, eq, lt } from 'drizzle-orm';
+import { and, desc, eq, lt, sql } from 'drizzle-orm';
 import { scopedOf } from '../auth/plugin.js';
 import type { Db } from '../db/client.js';
 import { auditEvents } from '../db/schema.js';
@@ -41,6 +41,38 @@ export const v1Routes: FastifyPluginAsyncTypebox<{ db: Db }> = async (app, { db 
       },
     },
     async () => ({ status: 'ok' as const }),
+  );
+
+  app.get(
+    '/health/db',
+    {
+      schema: {
+        tags: ['system'],
+        summary: 'Readiness check: round trip to Postgres',
+        response: {
+          200: Type.Object({
+            status: Type.Literal('ok'),
+            database: Type.Literal('ok'),
+            latency_ms: Type.Number(),
+          }),
+          503: Type.Object({ status: Type.Literal('unavailable'), database: Type.Literal('error') }),
+        },
+      },
+    },
+    async (req, reply) => {
+      const started = performance.now();
+      try {
+        await db.execute(sql`select 1`);
+      } catch (err) {
+        req.log.error({ err }, 'database readiness check failed');
+        return reply.code(503).send({ status: 'unavailable' as const, database: 'error' as const });
+      }
+      return {
+        status: 'ok' as const,
+        database: 'ok' as const,
+        latency_ms: Math.round(performance.now() - started),
+      };
+    },
   );
 
   app.get(

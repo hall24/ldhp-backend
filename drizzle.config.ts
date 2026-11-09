@@ -5,7 +5,12 @@ export default defineConfig({
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {
-    // Migration tasks should use a separate, more privileged role than the app (PRD §9).
-    url: process.env.DATABASE_MIGRATION_URL ?? process.env.DATABASE_URL ?? '',
+    // Migration tasks should use a separate, more privileged role than the app (PRD §9),
+    // over a direct (non -pooler) Neon connection.
+    url:
+      process.env.DATABASE_MIGRATION_URL ??
+      process.env.DATABASE_URL_UNPOOLED ??
+      process.env.DATABASE_URL ??
+      '',
   },
 });

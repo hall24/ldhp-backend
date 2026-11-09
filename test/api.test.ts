@@ -16,6 +16,12 @@ describe('authentication', () => {
     expect(res.headers['x-request-id']).toBeTruthy();
   });
 
+  it('serves database readiness without auth', async () => {
+    const res = await t.app.inject({ method: 'GET', url: '/v1/health/db' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ status: 'ok', database: 'ok' });
+  });
+
   it('rejects missing and invalid tokens with the error envelope', async () => {
     const none = await t.app.inject({ method: 'GET', url: '/v1/me' });
     expect(none.statusCode).toBe(401);
