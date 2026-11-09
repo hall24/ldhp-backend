@@ -15,6 +15,13 @@
       "when": 1794117109527,
       "tag": "0001_audit_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794253768701,
+      "tag": "0002_workspace_settings",
+      "breakpoints": true
     }
   ]
 }

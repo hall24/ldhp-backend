@@ -19,6 +19,7 @@ export function toServiceRecordDto(r: ServiceRecordRow) {
     next_due_on: r.nextDueOn,
     notes: r.notes,
     created_at: r.createdAt.toISOString(),
+    updated_at: r.updatedAt.toISOString(),
   };
 }
 
@@ -167,3 +168,96 @@ async function latestCompletionByCustomerType(ctx: ScopedContext, customerId?: s
   return m;
 }
 
+
+export interface ServiceRecordPatch {
+  serviceType?: string;
+  completedOn?: string;
+  intervalDays?: number | null;
+  notes?: string | null;
+  /** Explicit due date. Omit to recompute from completed_on + interval_days when either changes. */
+  nextDueOn?: string | null;
+}
+
+const recordScope = (ctx: ScopedContext, customerId: string, id: string) =>
+  and(
+    eq(serviceRecords.organizationId, ctx.organizationId),
+    eq(serviceRecords.customerId, customerId),
+    eq(serviceRecords.id, id),
+    isNull(serviceRecords.deletedAt),
+  );
+
+/**
+ * Correct a service record (PRD §4 step 4: "correct a date"). Returns null if the
+ * record (or its customer) is not in the caller's org.
+ */
+export async function updateServiceRecord(
+  ctx: ScopedContext,
+  customerId: string,
+  id: string,
+  patch: ServiceRecordPatch,
+): Promise<ServiceRecordRow | null> {
+  const customer = await getCustomer(ctx, customerId);
+  if (!customer) return null;
+  return ctx.db.transaction(async (txRaw) => {
+    const tx = txRaw as unknown as Db;
+    const [before] = await tx.select().from(serviceRecords).where(recordScope(ctx, customerId, id)).for('update');
+    if (!before) return null;
+
+    const completedOn = patch.completedOn ?? before.completedOn;
+    const intervalDays = patch.intervalDays !== undefined ? patch.intervalDays : before.intervalDays;
+    let nextDueOn = before.nextDueOn;
+    if (patch.nextDueOn !== undefined) nextDueOn = patch.nextDueOn;
+    else if (patch.completedOn !== undefined || patch.intervalDays !== undefined) {
+      nextDueOn = intervalDays ? addDays(completedOn, intervalDays) : null;
+    }
+
+    const [after] = await tx
+      .update(serviceRecords)
+      .set({
+        serviceType: patch.serviceType ?? before.serviceType,
+        completedOn,
+        intervalDays,
+        notes: patch.notes !== undefined ? patch.notes : before.notes,
+        nextDueOn,
+        updatedAt: new Date(),
+      })
+      .where(recordScope(ctx, customerId, id))
+      .returning();
+    await recordAudit(tx, {
+      actor: ctx.actor,
+      organizationId: ctx.organizationId,
+      action: 'service.updated',
+      recordType: 'service_record',
+      recordId: id,
+      requestId: ctx.requestId,
+      before: toServiceRecordDto(before),
+      after: toServiceRecordDto(after!),
+    });
+    return after!;
+  });
+}
+
+/** Soft delete a record entered in error. The audit log keeps what it said. */
+export async function deleteServiceRecord(ctx: ScopedContext, customerId: string, id: string): Promise<boolean> {
+  const customer = await getCustomer(ctx, customerId);
+  if (!customer) return false;
+  return ctx.db.transaction(async (txRaw) => {
+    const tx = txRaw as unknown as Db;
+    const [row] = await tx
+      .update(serviceRecords)
+      .set({ deletedAt: new Date(), updatedAt: new Date() })
+      .where(recordScope(ctx, customerId, id))
+      .returning();
+    if (!row) return false;
+    await recordAudit(tx, {
+      actor: ctx.actor,
+      organizationId: ctx.organizationId,
+      action: 'service.deleted',
+      recordType: 'service_record',
+      recordId: id,
+      requestId: ctx.requestId,
+      before: toServiceRecordDto(row),
+    });
+    return true;
+  });
+}

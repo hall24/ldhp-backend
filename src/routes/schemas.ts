@@ -61,6 +61,72 @@ export const CustomerCreate = Type.Object(
   { title: 'CustomerCreate', additionalProperties: false },
 );
 
+export const CustomerUpdate = Type.Object(
+  {
+    display_name: Type.Optional(Type.String({ minLength: 1, maxLength: 200 })),
+    email: Type.Optional(Nullable(Type.String({ format: 'email', maxLength: 320 }))),
+    phone: optStr(40),
+    address: Type.Optional(
+      Type.Object(
+        {
+          line1: optStr(200),
+          line2: optStr(200),
+          city: optStr(100),
+          region: optStr(100),
+          postal_code: optStr(20),
+        },
+        { additionalProperties: false },
+      ),
+    ),
+    notes: optStr(5000),
+    suppressed: Type.Optional(
+      Type.Boolean({ description: 'Suppressed customers are left out of the due queue.' }),
+    ),
+  },
+  { title: 'CustomerUpdate', additionalProperties: false, minProperties: 1 },
+);
+
+const serviceTypeList = Type.Array(Type.String({ minLength: 1, maxLength: 100 }), { maxItems: 50 });
+
+export const Organization = Type.Object(
+  {
+    id: Type.String({ format: 'uuid' }),
+    name: Type.String(),
+    time_zone: Type.String({ description: 'IANA time zone; the due queue is computed in it.' }),
+    message_from_name: Nullable(Type.String()),
+    service_types: Type.Array(Type.String()),
+    service_area: Nullable(Type.String()),
+    created_at: Type.String({ format: 'date-time' }),
+    updated_at: Type.String({ format: 'date-time' }),
+    role: Type.Union([Type.Literal('owner'), Type.Literal('staff')], {
+      description: "The caller's role in this organization.",
+    }),
+  },
+  { title: 'Organization' },
+);
+
+export const OrganizationCreate = Type.Object(
+  {
+    name: Type.String({ minLength: 1, maxLength: 200 }),
+    time_zone: Type.Optional(Type.String({ minLength: 1, maxLength: 64 })),
+    message_from_name: optStr(200),
+    service_types: Type.Optional(serviceTypeList),
+    service_area: optStr(500),
+  },
+  { title: 'OrganizationCreate', additionalProperties: false },
+);
+
+export const OrganizationUpdate = Type.Object(
+  {
+    name: Type.Optional(Type.String({ minLength: 1, maxLength: 200 })),
+    time_zone: Type.Optional(Type.String({ minLength: 1, maxLength: 64 })),
+    message_from_name: optStr(200),
+    service_types: Type.Optional(serviceTypeList),
+    service_area: optStr(500),
+  },
+  { title: 'OrganizationUpdate', additionalProperties: false, minProperties: 1 },
+);
+
 export const ServiceRecord = Type.Object(
   {
     id: Type.String({ format: 'uuid' }),
@@ -71,6 +137,7 @@ export const ServiceRecord = Type.Object(
     next_due_on: Nullable(Type.String({ format: 'date' })),
     notes: Nullable(Type.String()),
     created_at: Type.String({ format: 'date-time' }),
+    updated_at: Type.String({ format: 'date-time' }),
   },
   { title: 'ServiceRecord' },
 );
@@ -83,6 +150,25 @@ export const ServiceRecordCreate = Type.Object(
     notes: optStr(5000),
   },
   { title: 'ServiceRecordCreate', additionalProperties: false },
+);
+
+export const ServiceRecordUpdate = Type.Object(
+  {
+    service_type: Type.Optional(Type.String({ minLength: 1, maxLength: 100 })),
+    completed_on: Type.Optional(Type.String({ format: 'date' })),
+    interval_days: Type.Optional(Nullable(Type.Integer({ minimum: 1, maximum: 3650 }))),
+    notes: optStr(5000),
+    next_due_on: Type.Optional(
+      Nullable(
+        Type.String({
+          format: 'date',
+          description:
+            'Set the due date directly. If omitted and completed_on or interval_days changes, it is recomputed.',
+        }),
+      ),
+    ),
+  },
+  { title: 'ServiceRecordUpdate', additionalProperties: false, minProperties: 1 },
 );
 
 export const DueItem = Type.Object(
