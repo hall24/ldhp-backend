@@ -123,6 +123,31 @@ export const memberships = pgTable(
   (t) => [unique('memberships_org_account_uq').on(t.organizationId, t.accountId)],
 );
 
+/**
+ * Invitation to join a workspace. The invite link carries a random token; only its
+ * SHA-256 hash is stored. Single use, expires, and the owner can revoke it.
+ */
+export const invitations = pgTable(
+  'invitations',
+  {
+    id: id(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    role: membershipRole('role').notNull().default('staff'),
+    /** Who it is meant for (display only in R1; the token is what grants access). */
+    email: text('email'),
+    tokenHash: text('token_hash').notNull().unique(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    acceptedBy: uuid('accepted_by').references(() => accounts.id),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdBy: uuid('created_by').references(() => accounts.id),
+    createdAt: createdAt(),
+  },
+  (t) => [index('invitations_org_idx').on(t.organizationId, t.createdAt)],
+);
+
 // ---------------------------------------------------------------------------
 // Customers and service history
 // ---------------------------------------------------------------------------
