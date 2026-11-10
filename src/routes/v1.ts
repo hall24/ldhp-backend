@@ -9,6 +9,7 @@ import { createCustomer, getCustomer, listCustomers, toCustomerDto } from '../se
 import {
   createServiceRecord,
   listDue,
+  summarizeDue,
   listServiceHistory,
   toServiceRecordDto,
 } from '../services/service-records.js';
@@ -20,6 +21,7 @@ import {
   Customer,
   CustomerCreate,
   DueItem,
+  DueSummary,
   errorResponses,
   IdempotencyHeader,
   OrgHeader,
@@ -270,10 +272,13 @@ export const v1Routes: FastifyPluginAsyncTypebox<{ db: Db; outreach: OutreachEnv
         querystring: Type.Object({
           within_days: Type.Integer({ minimum: 0, maximum: 365, default: 30 }),
         }),
-        response: { 200: Type.Object({ data: Type.Array(DueItem) }), ...errorResponses },
+        response: { 200: Type.Object({ data: Type.Array(DueItem), summary: DueSummary }), ...errorResponses },
       },
     },
-    async (req) => ({ data: await listDue(scopedOf(req), { withinDays: req.query.within_days }) }),
+    async (req) => {
+      const data = await listDue(scopedOf(req), { withinDays: req.query.within_days });
+      return { data, summary: summarizeDue(data) };
+    },
   );
 
   // -------------------------------------------------------------------- audit

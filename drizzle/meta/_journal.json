@@ -43,6 +43,13 @@
       "when": 1794320530533,
       "tag": "0005_outreach",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794348838588,
+      "tag": "0006_booking_and_job_values",
+      "breakpoints": true
     }
   ]
 }

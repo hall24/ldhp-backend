@@ -272,6 +272,13 @@ export const intakeRoutes: FastifyPluginAsyncTypebox<{ db: Db }> = async (app, {
             can_respond: Type.Boolean(),
             response: Nullable(IntakeResponseSchema),
             expires_at: Type.String({ format: 'date-time' }),
+            booking_url: Nullable(
+              Type.String({
+                description:
+                  "The business's own booking page, if set. After a yes or contact_me answer, offer it as " +
+                  '"Pick a time". The request still lands in the staff queue either way.',
+              }),
+            ),
           }),
           400: ErrorResponse,
           404: ErrorResponse,
@@ -300,7 +307,17 @@ export const intakeRoutes: FastifyPluginAsyncTypebox<{ db: Db }> = async (app, {
           { additionalProperties: false },
         ),
         response: {
-          200: Type.Object({ business_name: Type.String(), response: IntakeResponseSchema }),
+          200: Type.Object({
+            business_name: Type.String(),
+            response: IntakeResponseSchema,
+            booking_url: Nullable(
+              Type.String({
+                description:
+                  "The business's own booking page, if set. After a yes or contact_me answer, offer it as " +
+                  '"Pick a time". The request still lands in the staff queue either way.',
+              }),
+            ),
+          }),
           400: ErrorResponse,
           404: ErrorResponse,
           409: ErrorResponse,

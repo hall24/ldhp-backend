@@ -99,6 +99,10 @@ export const organizations = pgTable(
   replyToEmail: text('reply_to_email'),
   /** Postal address printed in every outreach email footer (required to send; CAN-SPAM). */
   mailingAddress: text('mailing_address'),
+  /** The business's own online booking page (Jobber, Calendly...), offered after a customer says yes. */
+  bookingUrl: text('booking_url'),
+  /** Typical job value per service type, in US cents; only used for due-queue estimates. */
+  jobValuesCents: jsonb('job_values_cents').$type<Record<string, number>>().notNull().default({}),
   createdBy: uuid('created_by').references(() => accounts.id),
   /** Idempotency-Key of the create request, so a retried signup can't make two workspaces. */
   creationKey: text('creation_key'),

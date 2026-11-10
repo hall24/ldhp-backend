@@ -2684,7 +2684,8 @@
                 "schema": {
                   "type": "object",
                   "required": [
-                    "data"
+                    "data",
+                    "summary"
                   ],
                   "properties": {
                     "data": {
@@ -2700,7 +2701,8 @@
                           "last_completed_on",
                           "next_due_on",
                           "days_until_due",
-                          "status"
+                          "status",
+                          "estimated_value_cents"
                         ],
                         "properties": {
                           "service_record_id": {
@@ -2743,7 +2745,58 @@
                                 ]
                               }
                             ]
+                          },
+                          "estimated_value_cents": {
+                            "anyOf": [
+                              {
+                                "description": "The workspace's typical job value for this service type, if set (US cents).",
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
+                        }
+                      }
+                    },
+                    "summary": {
+                      "title": "DueSummary",
+                      "type": "object",
+                      "required": [
+                        "overdue",
+                        "due_soon",
+                        "estimated_value_cents",
+                        "items_without_value",
+                        "currency"
+                      ],
+                      "properties": {
+                        "overdue": {
+                          "type": "integer"
+                        },
+                        "due_soon": {
+                          "type": "integer"
+                        },
+                        "estimated_value_cents": {
+                          "anyOf": [
+                            {
+                              "description": "Sum of typical job values for the items listed (US cents). Null when no job values are set. An estimate: show it labelled as such (\"About $3,200 in rebookings waiting\").",
+                              "type": "integer"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "items_without_value": {
+                          "description": "Items whose service type has no job value set.",
+                          "type": "integer"
+                        },
+                        "currency": {
+                          "type": "string",
+                          "enum": [
+                            "USD"
+                          ]
                         }
                       }
                     }
@@ -3274,6 +3327,29 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "booking_url": {
+                    "anyOf": [
+                      {
+                        "format": "uri",
+                        "maxLength": 500,
+                        "description": "The business's own online booking page (https only), e.g. a Jobber, Housecall Pro or Calendly link. Shown to customers on the response page so a \"yes\" can pick a time right away.",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "job_values_cents": {
+                    "maxProperties": 50,
+                    "description": "Typical job value per service type, in US cents (e.g. {\"gutter_cleaning\": 25000}). Optional; only used for the due-queue revenue estimate. Replaces the whole map when sent.",
+                    "type": "object",
+                    "additionalProperties": {
+                      "minimum": 0,
+                      "maximum": 100000000,
+                      "type": "integer"
+                    }
                   }
                 }
               }
@@ -3313,6 +3389,8 @@
                     "service_area",
                     "reply_to_email",
                     "mailing_address",
+                    "booking_url",
+                    "job_values_cents",
                     "created_at",
                     "updated_at",
                     "role"
@@ -3376,6 +3454,24 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "booking_url": {
+                      "anyOf": [
+                        {
+                          "description": "The business's own online booking page (https only), e.g. a Jobber, Housecall Pro or Calendly link. Shown to customers on the response page so a \"yes\" can pick a time right away.",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "job_values_cents": {
+                      "description": "Typical job value per service type, in US cents (e.g. {\"gutter_cleaning\": 25000}). Optional; only used for the due-queue revenue estimate. Replaces the whole map when sent.",
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer"
+                      }
                     },
                     "created_at": {
                       "format": "date-time",
@@ -3522,6 +3618,8 @@
                     "service_area",
                     "reply_to_email",
                     "mailing_address",
+                    "booking_url",
+                    "job_values_cents",
                     "created_at",
                     "updated_at",
                     "role"
@@ -3585,6 +3683,24 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "booking_url": {
+                      "anyOf": [
+                        {
+                          "description": "The business's own online booking page (https only), e.g. a Jobber, Housecall Pro or Calendly link. Shown to customers on the response page so a \"yes\" can pick a time right away.",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "job_values_cents": {
+                      "description": "Typical job value per service type, in US cents (e.g. {\"gutter_cleaning\": 25000}). Optional; only used for the due-queue revenue estimate. Replaces the whole map when sent.",
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer"
+                      }
                     },
                     "created_at": {
                       "format": "date-time",
@@ -3840,6 +3956,29 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "booking_url": {
+                    "anyOf": [
+                      {
+                        "format": "uri",
+                        "maxLength": 500,
+                        "description": "The business's own online booking page (https only), e.g. a Jobber, Housecall Pro or Calendly link. Shown to customers on the response page so a \"yes\" can pick a time right away.",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "job_values_cents": {
+                    "maxProperties": 50,
+                    "description": "Typical job value per service type, in US cents (e.g. {\"gutter_cleaning\": 25000}). Optional; only used for the due-queue revenue estimate. Replaces the whole map when sent.",
+                    "type": "object",
+                    "additionalProperties": {
+                      "minimum": 0,
+                      "maximum": 100000000,
+                      "type": "integer"
+                    }
                   }
                 }
               }
@@ -3880,6 +4019,8 @@
                     "service_area",
                     "reply_to_email",
                     "mailing_address",
+                    "booking_url",
+                    "job_values_cents",
                     "created_at",
                     "updated_at",
                     "role"
@@ -3943,6 +4084,24 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "booking_url": {
+                      "anyOf": [
+                        {
+                          "description": "The business's own online booking page (https only), e.g. a Jobber, Housecall Pro or Calendly link. Shown to customers on the response page so a \"yes\" can pick a time right away.",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "job_values_cents": {
+                      "description": "Typical job value per service type, in US cents (e.g. {\"gutter_cleaning\": 25000}). Optional; only used for the due-queue revenue estimate. Replaces the whole map when sent.",
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer"
+                      }
                     },
                     "created_at": {
                       "format": "date-time",
@@ -9685,7 +9844,8 @@
                     "service_type",
                     "can_respond",
                     "response",
-                    "expires_at"
+                    "expires_at",
+                    "booking_url"
                   ],
                   "properties": {
                     "business_name": {
@@ -9736,6 +9896,17 @@
                     "expires_at": {
                       "format": "date-time",
                       "type": "string"
+                    },
+                    "booking_url": {
+                      "anyOf": [
+                        {
+                          "description": "The business's own booking page, if set. After a yes or contact_me answer, offer it as \"Pick a time\". The request still lands in the staff queue either way.",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   }
                 }
@@ -9891,7 +10062,8 @@
                   "type": "object",
                   "required": [
                     "business_name",
-                    "response"
+                    "response",
+                    "booking_url"
                   ],
                   "properties": {
                     "business_name": {
@@ -9916,6 +10088,17 @@
                           "enum": [
                             "contact_me"
                           ]
+                        }
+                      ]
+                    },
+                    "booking_url": {
+                      "anyOf": [
+                        {
+                          "description": "The business's own booking page, if set. After a yes or contact_me answer, offer it as \"Pick a time\". The request still lands in the staff queue either way.",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
                         }
                       ]
                     }

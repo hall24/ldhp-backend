@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, isNull, lte, isNotNull } from 'drizzle-orm';
-import { customers, serviceRecords } from '../db/schema.js';
+import { customers, organizations, serviceRecords } from '../db/schema.js';
 import { recordAudit } from './audit.js';
 import type { ScopedContext } from './context.js';
 import { addDays, todayInZone } from '../lib/dates.js';
@@ -93,6 +93,35 @@ export interface DueItem {
   next_due_on: string;
   days_until_due: number;
   status: 'overdue' | 'due_soon';
+  /** The workspace's typical job value for this service type, in US cents, if set. */
+  estimated_value_cents: number | null;
+}
+
+export interface DueSummary {
+  overdue: number;
+  due_soon: number;
+  estimated_value_cents: number | null;
+  items_without_value: number;
+  currency: 'USD';
+}
+
+/** Counts and the revenue estimate shown above the due queue. */
+export function summarizeDue(items: DueItem[]): DueSummary {
+  let total = 0;
+  let valued = 0;
+  for (const i of items) {
+    if (i.estimated_value_cents !== null) {
+      total += i.estimated_value_cents;
+      valued++;
+    }
+  }
+  return {
+    overdue: items.filter((i) => i.status === 'overdue').length,
+    due_soon: items.filter((i) => i.status === 'due_soon').length,
+    estimated_value_cents: valued > 0 ? total : null,
+    items_without_value: items.length - valued,
+    currency: 'USD',
+  };
 }
 
 /**
@@ -129,6 +158,12 @@ export async function listDue(
   // Keep only the most recent record per (customer, service type): a newer
   // completion supersedes an older due date.
   const latest = await latestCompletionByCustomerType(ctx, opts.customerId);
+  const [org] = await ctx.db
+    .select({ jobValuesCents: organizations.jobValuesCents })
+    .from(organizations)
+    .where(eq(organizations.id, ctx.organizationId))
+    .limit(1);
+  const values = org?.jobValuesCents ?? {};
   const todayMs = Date.parse(`${today}T00:00:00Z`);
   return rows
     .filter(({ r }) => latest.get(`${r.customerId}|${r.serviceType}`) === r.id)
@@ -143,6 +178,7 @@ export async function listDue(
         next_due_on: r.nextDueOn!,
         days_until_due: days,
         status: days < 0 ? 'overdue' : 'due_soon',
+        estimated_value_cents: Object.hasOwn(values, r.serviceType) ? values[r.serviceType]! : null,
       } satisfies DueItem;
     });
 }
