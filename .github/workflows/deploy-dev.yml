@@ -1,0 +1,109 @@
+# Deploys the API to Azure Container Apps (dev). Runs in the GitHub "dev" environment,
+# which requires an approval from the owner and only accepts the main branch. Azure
+# sign-in is federated (OIDC): no Azure password is stored anywhere.
+#
+# Repo/environment variables used (none are secrets):
+#   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID  - the deploy identity
+#   AZURE_ADMIN_OBJECT_ID     - your Entra user object ID (can manage vault secrets)
+#   AZURE_RESOURCE_GROUP      - optional, default rg-ldhp-dev
+#   LDHP_SECRETS_READY        - "true" once the vault holds the secrets (see infra/README.md)
+#   LDHP_MIN_REPLICAS         - optional, 0 (scale to zero, default) or 1 (always on)
+#   CLERK_AUTHORIZED_PARTIES  - optional, comma-separated front-end origins
+name: deploy-dev
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['src/**', 'drizzle/**', 'infra/**', 'package*.json', 'Dockerfile', '.github/workflows/deploy-dev.yml']
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+env:
+  RG: ${{ vars.AZURE_RESOURCE_GROUP || 'rg-ldhp-dev' }}
+  APP: ca-ldhp-dev
+  SECRETS_READY: ${{ vars.LDHP_SECRETS_READY == 'true' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Infrastructure (keeps the image that is running now)
+        id: infra
+        run: |
+          current=$(az containerapp show -g "$RG" -n "$APP" --query 'properties.template.containers[0].image' -o tsv 2>/dev/null || true)
+          if [ "$SECRETS_READY" != "true" ] || [ -z "$current" ]; then current=mcr.microsoft.com/k8se/quickstart:latest; fi
+          az deployment group create -g "$RG" -n "infra-${{ github.run_id }}" -f infra/main.bicep \
+            -p image="$current" \
+               minReplicas="${{ vars.LDHP_MIN_REPLICAS || '0' }}" \
+               adminObjectId="${{ vars.AZURE_ADMIN_OBJECT_ID }}" \
+               clerkAuthorizedParties="${{ vars.CLERK_AUTHORIZED_PARTIES }}" \
+               secretsReady="$SECRETS_READY" \
+            --query properties.outputs -o json > outputs.json
+          echo "registry=$(jq -r .registryName.value outputs.json)" >> "$GITHUB_OUTPUT"
+          echo "server=$(jq -r .registryServer.value outputs.json)" >> "$GITHUB_OUTPUT"
+          echo "vault=$(jq -r .vaultName.value outputs.json)" >> "$GITHUB_OUTPUT"
+          echo "url=$(jq -r .apiUrl.value outputs.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Stop here until secrets are added
+        if: env.SECRETS_READY != 'true'
+        run: |
+          echo "::notice::Infrastructure is ready. Add the secrets to vault ${{ steps.infra.outputs.vault }} (see infra/README.md), set LDHP_SECRETS_READY=true, and run this workflow again."
+
+      - name: Build and push image
+        if: env.SECRETS_READY == 'true'
+        id: image
+        run: |
+          az acr login -n "${{ steps.infra.outputs.registry }}"
+          tag="${{ steps.infra.outputs.server }}/ldhp-api:${{ github.sha }}"
+          docker build -t "$tag" .
+          docker push "$tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        if: env.SECRETS_READY == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply database migrations
+        if: env.SECRETS_READY == 'true'
+        run: |
+          url=$(az keyvault secret show --vault-name "${{ steps.infra.outputs.vault }}" -n database-url-unpooled --query value -o tsv)
+          echo "::add-mask::$url"
+          npm ci
+          DATABASE_MIGRATION_URL="$url" npm run db:migrate
+
+      - name: Roll out the new image
+        if: env.SECRETS_READY == 'true'
+        run: |
+          az deployment group create -g "$RG" -n "app-${{ github.run_id }}" -f infra/main.bicep \
+            -p image="${{ steps.image.outputs.tag }}" \
+               minReplicas="${{ vars.LDHP_MIN_REPLICAS || '0' }}" \
+               adminObjectId="${{ vars.AZURE_ADMIN_OBJECT_ID }}" \
+               clerkAuthorizedParties="${{ vars.CLERK_AUTHORIZED_PARTIES }}" \
+               secretsReady=true -o none
+
+      - name: Smoke test
+        if: env.SECRETS_READY == 'true'
+        run: |
+          url="${{ steps.infra.outputs.url }}"
+          for i in $(seq 1 12); do
+            if curl -fsS "$url/v1/health/db"; then echo; echo "::notice::API is live at $url"; exit 0; fi
+            sleep 10
+          done
+          echo "::error::$url/v1/health/db did not return 200"; exit 1
