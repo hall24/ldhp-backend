@@ -9,6 +9,11 @@ export default defineConfig({
       // Default branch: no overrides, uses project defaults
       return {};
     }
+    if (branch.name === "dev") {
+      // Long-lived shared development branch (hosted dev API + Replit front ends):
+      // never auto-expires. Production stays untouched until launch.
+      return {};
+    }
     if (!branch.exists) {
       // New non-default branches: auto-expire
       // Run `neon checkout <name>` to create a new branch with these settings
