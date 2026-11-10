@@ -13674,6 +13674,505 @@
           }
         }
       }
+    },
+    "/v1/imports/customers": {
+      "post": {
+        "summary": "Import customers and their last service from a CSV file",
+        "tags": [
+          "import-export"
+        ],
+        "description": "Send the file contents as `csv`. Run with mode \"preview\" first: nothing is saved and you get a report. Then send the same file with mode \"import\". Columns (header names are flexible): name (required), email, phone, address, address2, city, state, zip, notes, service_type, last_service_date (YYYY-MM-DD or MM/DD/YYYY), interval_days. One row per customer, or several rows per customer for several past services. Existing customers are matched by customer_id, email, or name + address and never overwritten; services already on file are skipped, so re-importing a file is safe. Import is all-or-nothing unless skip_invalid_rows is true (400 import_has_errors). At most 5000 rows. Contact permissions are not imported; record those separately.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "csv",
+                  "mode"
+                ],
+                "properties": {
+                  "csv": {
+                    "minLength": 1,
+                    "maxLength": 4194304,
+                    "type": "string"
+                  },
+                  "mode": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "preview"
+                        ]
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "import"
+                        ]
+                      }
+                    ]
+                  },
+                  "skip_invalid_rows": {
+                    "default": false,
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "in": "header",
+            "name": "x-organization-id",
+            "required": true,
+            "description": "Organization (workspace) context. The server verifies your membership."
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "ImportReport",
+                  "type": "object",
+                  "required": [
+                    "summary",
+                    "columns",
+                    "errors",
+                    "sample",
+                    "applied"
+                  ],
+                  "properties": {
+                    "summary": {
+                      "type": "object",
+                      "required": [
+                        "rows",
+                        "valid_rows",
+                        "error_rows",
+                        "customers_created",
+                        "customers_matched",
+                        "service_records_created",
+                        "service_records_duplicate"
+                      ],
+                      "properties": {
+                        "rows": {
+                          "type": "integer"
+                        },
+                        "valid_rows": {
+                          "type": "integer"
+                        },
+                        "error_rows": {
+                          "type": "integer"
+                        },
+                        "customers_created": {
+                          "type": "integer"
+                        },
+                        "customers_matched": {
+                          "description": "Rows that matched an existing customer (nothing overwritten).",
+                          "type": "integer"
+                        },
+                        "service_records_created": {
+                          "type": "integer"
+                        },
+                        "service_records_duplicate": {
+                          "description": "Already on file (same customer, service and date).",
+                          "type": "integer"
+                        }
+                      }
+                    },
+                    "columns": {
+                      "type": "object",
+                      "required": [
+                        "mapped",
+                        "ignored"
+                      ],
+                      "properties": {
+                        "mapped": {
+                          "description": "Your column header -> our field.",
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
+                        "ignored": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "line",
+                          "messages"
+                        ],
+                        "properties": {
+                          "line": {
+                            "type": "integer"
+                          },
+                          "messages": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "sample": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "line",
+                          "display_name",
+                          "customer",
+                          "service"
+                        ],
+                        "properties": {
+                          "line": {
+                            "type": "integer"
+                          },
+                          "display_name": {
+                            "type": "string"
+                          },
+                          "customer": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "create"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "match"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "error"
+                                ]
+                              }
+                            ]
+                          },
+                          "service": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "create"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "duplicate"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "none"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "error"
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "applied": {
+                      "description": "True only when mode was \"import\" and the rows were saved.",
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Error",
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Error",
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Error",
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Error",
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/exports/customers.csv": {
+      "get": {
+        "summary": "Download all customers and service history as CSV (owners only)",
+        "tags": [
+          "import-export"
+        ],
+        "description": "One row per service record; customers without any appear once. The file re-imports cleanly. Cells that a spreadsheet would treat as formulas are prefixed with an apostrophe.",
+        "parameters": [
+          {
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "in": "header",
+            "name": "x-organization-id",
+            "required": true,
+            "description": "Organization (workspace) context. The server verifies your membership."
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "text/csv",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "description": "text/csv",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "title": "Error",
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "title": "Error",
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "servers": [
