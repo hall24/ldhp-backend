@@ -44,6 +44,8 @@ type SettingsBody = {
   service_area?: string | null;
   reply_to_email?: string | null;
   mailing_address?: string | null;
+  booking_url?: string | null;
+  job_values_cents?: Record<string, number>;
 };
 
 function toSettings(b: SettingsBody): OrganizationSettings {
@@ -55,6 +57,8 @@ function toSettings(b: SettingsBody): OrganizationSettings {
   if (b.service_area !== undefined) s.serviceArea = b.service_area;
   if (b.reply_to_email !== undefined) s.replyToEmail = b.reply_to_email;
   if (b.mailing_address !== undefined) s.mailingAddress = b.mailing_address;
+  if (b.booking_url !== undefined) s.bookingUrl = b.booking_url;
+  if (b.job_values_cents !== undefined) s.jobValuesCents = b.job_values_cents;
   return s;
 }
 

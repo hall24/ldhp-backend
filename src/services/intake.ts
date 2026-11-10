@@ -241,7 +241,12 @@ const ANSWERABLE: IntakeStatus[] = ['awaiting_response', 'received'];
 async function findByToken(db: Db, token: string, forUpdate: boolean) {
   if (!looksLikeToken(token)) return null;
   const q = db
-    .select({ r: intakeRequests, businessName: organizations.name, fromName: organizations.messageFromName })
+    .select({
+      r: intakeRequests,
+      businessName: organizations.name,
+      fromName: organizations.messageFromName,
+      bookingUrl: organizations.bookingUrl,
+    })
     .from(intakeRequests)
     .innerJoin(organizations, eq(organizations.id, intakeRequests.organizationId))
     .innerJoin(
@@ -277,6 +282,7 @@ export async function viewByToken(db: Db, token: string) {
     can_respond: ANSWERABLE.includes(row.r.status),
     response: row.r.response,
     expires_at: row.r.linkExpiresAt.toISOString(),
+    booking_url: row.bookingUrl,
   };
 }
 
@@ -328,7 +334,7 @@ export async function respondByToken(
       requestId,
       after: { response: input.response, has_note: !!input.note, unsubscribed: input.unsubscribe },
     });
-    return { business_name: row.fromName || row.businessName, response: input.response };
+    return { business_name: row.fromName || row.businessName, response: input.response, booking_url: row.bookingUrl };
   });
   if (!result) throw invalidLink();
   return result;

@@ -15,6 +15,8 @@ export interface OrganizationSettings {
   serviceArea?: string | null;
   replyToEmail?: string | null;
   mailingAddress?: string | null;
+  bookingUrl?: string | null;
+  jobValuesCents?: Record<string, number>;
 }
 
 /** True if `tz` is an IANA zone the runtime understands (the due queue depends on it). */
@@ -39,6 +41,26 @@ function validateSettings(s: OrganizationSettings) {
     }
     s.serviceTypes = normalized;
   }
+  if (s.bookingUrl) {
+    let ok = false;
+    try {
+      const u = new URL(s.bookingUrl);
+      ok = u.protocol === 'https:' && !u.username && !u.password;
+    } catch {
+      ok = false;
+    }
+    if (!ok) throw Errors.validation({ booking_url: 'must be an https:// link' });
+  }
+  if (s.jobValuesCents) {
+    const cleaned: Record<string, number> = {};
+    for (const [k, v] of Object.entries(s.jobValuesCents)) {
+      const key = k.trim();
+      if (!key) throw Errors.validation({ job_values_cents: 'empty service type' });
+      if (!Number.isInteger(v) || v < 0) throw Errors.validation({ job_values_cents: 'amounts must be whole cents, 0 or more' });
+      cleaned[key] = v;
+    }
+    s.jobValuesCents = cleaned;
+  }
 }
 
 export function toOrganizationDto(o: OrganizationRow, role?: string) {
@@ -51,6 +73,8 @@ export function toOrganizationDto(o: OrganizationRow, role?: string) {
     service_area: o.serviceArea,
     reply_to_email: o.replyToEmail,
     mailing_address: o.mailingAddress,
+    booking_url: o.bookingUrl,
+    job_values_cents: o.jobValuesCents,
     created_at: o.createdAt.toISOString(),
     updated_at: o.updatedAt.toISOString(),
     ...(role ? { role } : {}),
@@ -65,6 +89,8 @@ const auditView = (o: OrganizationRow) => ({
   service_area: o.serviceArea,
   reply_to_email: o.replyToEmail,
   mailing_address: o.mailingAddress,
+  booking_url: o.bookingUrl,
+  job_values_cents: o.jobValuesCents,
 });
 
 /**
@@ -96,6 +122,8 @@ export async function createOrganization(
           serviceArea: input.serviceArea ?? null,
           replyToEmail: input.replyToEmail ?? null,
           mailingAddress: input.mailingAddress ?? null,
+          bookingUrl: input.bookingUrl ?? null,
+          jobValuesCents: input.jobValuesCents ?? {},
           createdBy: actor.accountId,
           creationKey: opts.idempotencyKey ?? null,
         })

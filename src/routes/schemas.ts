@@ -87,6 +87,20 @@ export const CustomerUpdate = Type.Object(
   { title: 'CustomerUpdate', additionalProperties: false, minProperties: 1 },
 );
 
+const bookingUrlDesc =
+  "The business's own online booking page (https only), e.g. a Jobber, Housecall Pro or Calendly link. " +
+  'Shown to customers on the response page so a "yes" can pick a time right away.';
+const jobValuesDesc =
+  'Typical job value per service type, in US cents (e.g. {"gutter_cleaning": 25000}). ' +
+  'Optional; only used for the due-queue revenue estimate. Replaces the whole map when sent.';
+const optBookingUrl = Type.Optional(Nullable(Type.String({ format: 'uri', maxLength: 500, description: bookingUrlDesc })));
+const optJobValues = Type.Optional(
+  Type.Record(Type.String({ minLength: 1, maxLength: 100 }), Type.Integer({ minimum: 0, maximum: 100_000_000 }), {
+    maxProperties: 50,
+    description: jobValuesDesc,
+  }),
+);
+
 const serviceTypeList = Type.Array(Type.String({ minLength: 1, maxLength: 100 }), { maxItems: 50 });
 
 export const Organization = Type.Object(
@@ -101,6 +115,8 @@ export const Organization = Type.Object(
     mailing_address: Nullable(
       Type.String({ description: 'Printed in every outreach email footer. Required before sending email.' }),
     ),
+    booking_url: Nullable(Type.String({ description: bookingUrlDesc })),
+    job_values_cents: Type.Record(Type.String(), Type.Integer(), { description: jobValuesDesc }),
     created_at: Type.String({ format: 'date-time' }),
     updated_at: Type.String({ format: 'date-time' }),
     role: Type.Union([Type.Literal('owner'), Type.Literal('staff')], {
@@ -119,6 +135,8 @@ export const OrganizationCreate = Type.Object(
     service_area: optStr(500),
     reply_to_email: optEmail,
     mailing_address: optStr(500),
+    booking_url: optBookingUrl,
+    job_values_cents: optJobValues,
   },
   { title: 'OrganizationCreate', additionalProperties: false },
 );
@@ -132,6 +150,8 @@ export const OrganizationUpdate = Type.Object(
     service_area: optStr(500),
     reply_to_email: optEmail,
     mailing_address: optStr(500),
+    booking_url: optBookingUrl,
+    job_values_cents: optJobValues,
   },
   { title: 'OrganizationUpdate', additionalProperties: false, minProperties: 1 },
 );
@@ -190,8 +210,28 @@ export const DueItem = Type.Object(
     next_due_on: Type.String({ format: 'date' }),
     days_until_due: Type.Integer(),
     status: Type.Union([Type.Literal('overdue'), Type.Literal('due_soon')]),
+    estimated_value_cents: Nullable(
+      Type.Integer({ description: "The workspace's typical job value for this service type, if set (US cents)." }),
+    ),
   },
   { title: 'DueItem' },
+);
+
+export const DueSummary = Type.Object(
+  {
+    overdue: Type.Integer(),
+    due_soon: Type.Integer(),
+    estimated_value_cents: Nullable(
+      Type.Integer({
+        description:
+          'Sum of typical job values for the items listed (US cents). Null when no job values are set. ' +
+          'An estimate: show it labelled as such ("About $3,200 in rebookings waiting").',
+      }),
+    ),
+    items_without_value: Type.Integer({ description: 'Items whose service type has no job value set.' }),
+    currency: Type.Literal('USD'),
+  },
+  { title: 'DueSummary' },
 );
 
 export const AuditEvent = Type.Object(
