@@ -1,4 +1,4 @@
-import { buildApp } from '../../src/app.js';
+import { buildApp, type AppDeps } from '../../src/app.js';
 import type { TokenVerifier } from '../../src/auth/verifier.js';
 import { seedSynthetic, SEED } from '../../src/db/seed.js';
 import { createTestDb } from './db.js';
@@ -13,10 +13,10 @@ export const fakeVerifier: TokenVerifier = {
 
 export const bearer = (clerkUserId: string) => ({ authorization: `Bearer test:${clerkUserId}` });
 
-export async function setup() {
+export async function setup(opts: { email?: AppDeps['email'] } = {}) {
   const { db, close } = await createTestDb();
   await seedSynthetic(db);
-  const app = await buildApp({ db, verifier: fakeVerifier });
+  const app = await buildApp({ db, verifier: fakeVerifier, email: opts.email, publicBaseUrl: 'https://api.example.test' });
   await app.ready();
   return {
     db,

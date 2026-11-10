@@ -9,6 +9,9 @@
 #   LDHP_SECRETS_READY        - "true" once the vault holds the secrets (see infra/README.md)
 #   LDHP_MIN_REPLICAS         - optional, 0 (scale to zero, default) or 1 (always on)
 #   CLERK_AUTHORIZED_PARTIES  - optional, comma-separated front-end origins
+#   PUBLIC_APP_URL            - optional, front-end origin serving /r and /unsubscribe (email links)
+#   EMAIL_FROM_ADDRESS        - optional, sending address on a SendGrid-verified domain
+#   LDHP_SENDGRID_READY       - "true" once the vault holds sendgrid-api-key
 name: deploy-dev
 on:
   workflow_dispatch:
@@ -53,6 +56,9 @@ jobs:
                adminObjectId="${{ vars.AZURE_ADMIN_OBJECT_ID }}" \
                clerkAuthorizedParties="${{ vars.CLERK_AUTHORIZED_PARTIES }}" \
                secretsReady="$SECRETS_READY" \
+               emailFromAddress="${{ vars.EMAIL_FROM_ADDRESS }}" \
+               publicAppUrl="${{ vars.PUBLIC_APP_URL }}" \
+               sendgridReady="${{ vars.LDHP_SENDGRID_READY == 'true' }}" \
             --query properties.outputs -o json > outputs.json
           echo "registry=$(jq -r .registryName.value outputs.json)" >> "$GITHUB_OUTPUT"
           echo "server=$(jq -r .registryServer.value outputs.json)" >> "$GITHUB_OUTPUT"
@@ -96,6 +102,9 @@ jobs:
                minReplicas="${{ vars.LDHP_MIN_REPLICAS || '0' }}" \
                adminObjectId="${{ vars.AZURE_ADMIN_OBJECT_ID }}" \
                clerkAuthorizedParties="${{ vars.CLERK_AUTHORIZED_PARTIES }}" \
+               emailFromAddress="${{ vars.EMAIL_FROM_ADDRESS }}" \
+               publicAppUrl="${{ vars.PUBLIC_APP_URL }}" \
+               sendgridReady="${{ vars.LDHP_SENDGRID_READY == 'true' }}" \
                secretsReady=true -o none
 
       - name: Smoke test

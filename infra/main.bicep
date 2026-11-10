@@ -27,6 +27,15 @@ param clerkAuthorizedParties string = ''
 @description('Set true once the vault holds database-url and clerk-secret-key. Until then the placeholder image runs without secrets.')
 param secretsReady bool = false
 
+@description('Sending address on a domain verified in SendGrid, e.g. reminders@mail.living-data.com. Empty = email off.')
+param emailFromAddress string = ''
+
+@description('Front-end origin serving the customer pages /r and /unsubscribe, e.g. https://app.replit.app.')
+param publicAppUrl string = ''
+
+@description('Set true once the vault holds sendgrid-api-key. Until then campaigns can be drafted and previewed but not sent.')
+param sendgridReady bool = false
+
 var suffix = uniqueString(resourceGroup().id)
 var tags = { app: 'ldhp-api', env: envName }
 
@@ -115,6 +124,10 @@ var appSecrets = secretsReady
     ]
   : []
 
+var emailSecrets = secretsReady && sendgridReady
+  ? [{ name: 'sendgrid-api-key', keyVaultUrl: '${vault.properties.vaultUri}secrets/sendgrid-api-key', identity: appIdentity.id }]
+  : []
+
 var appEnv = secretsReady
   ? [
       { name: 'NODE_ENV', value: 'production' }
@@ -125,6 +138,12 @@ var appEnv = secretsReady
       { name: 'PUBLIC_BASE_URL', value: 'https://ca-ldhp-${envName}.${env.properties.defaultDomain}' }
     ]
   : []
+
+var emailEnv = concat(
+  secretsReady && sendgridReady ? [{ name: 'SENDGRID_API_KEY', secretRef: 'sendgrid-api-key' }] : [],
+  secretsReady && !empty(emailFromAddress) ? [{ name: 'EMAIL_FROM_ADDRESS', value: emailFromAddress }] : [],
+  secretsReady && !empty(publicAppUrl) ? [{ name: 'PUBLIC_APP_URL', value: publicAppUrl }] : []
+)
 
 resource app 'Microsoft.App/containerApps@2024-03-01' = {
   name: 'ca-ldhp-${envName}'
@@ -153,7 +172,8 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
       ]
       secrets: concat(
         [{ name: 'registry-password', value: registry.listCredentials().passwords[0].value }],
-        appSecrets
+        appSecrets,
+        emailSecrets
       )
     }
     template: {
@@ -162,7 +182,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'api'
           image: image
           resources: { cpu: json('0.25'), memory: '0.5Gi' }
-          env: appEnv
+          env: concat(appEnv, emailEnv)
           probes: secretsReady
             ? [
                 { type: 'Liveness', httpGet: { path: '/v1/health', port: 3000 }, periodSeconds: 30 }

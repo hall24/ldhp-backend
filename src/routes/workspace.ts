@@ -42,6 +42,8 @@ type SettingsBody = {
   message_from_name?: string | null;
   service_types?: string[];
   service_area?: string | null;
+  reply_to_email?: string | null;
+  mailing_address?: string | null;
 };
 
 function toSettings(b: SettingsBody): OrganizationSettings {
@@ -51,6 +53,8 @@ function toSettings(b: SettingsBody): OrganizationSettings {
   if (b.message_from_name !== undefined) s.messageFromName = b.message_from_name;
   if (b.service_types !== undefined) s.serviceTypes = b.service_types;
   if (b.service_area !== undefined) s.serviceArea = b.service_area;
+  if (b.reply_to_email !== undefined) s.replyToEmail = b.reply_to_email;
+  if (b.mailing_address !== undefined) s.mailingAddress = b.mailing_address;
   return s;
 }
 

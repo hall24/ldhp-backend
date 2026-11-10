@@ -30,10 +30,15 @@ import {
 import { workspaceRoutes } from './workspace.js';
 import { teamRoutes } from './team.js';
 import { intakeRoutes } from './intake.js';
+import { outreachRoutes } from './outreach.js';
+import type { OutreachEnv } from '../services/outreach.js';
 
 const secured = [{ bearerAuth: [] }];
 
-export const v1Routes: FastifyPluginAsyncTypebox<{ db: Db }> = async (app, { db }) => {
+export const v1Routes: FastifyPluginAsyncTypebox<{ db: Db; outreach: OutreachEnv }> = async (
+  app,
+  { db, outreach },
+) => {
   app.get(
     '/health',
     {
@@ -321,4 +326,5 @@ export const v1Routes: FastifyPluginAsyncTypebox<{ db: Db }> = async (app, { db 
   await app.register(workspaceRoutes, { db });
   await app.register(teamRoutes, { db });
   await app.register(intakeRoutes, { db });
+  await app.register(outreachRoutes, { db, outreach });
 };
