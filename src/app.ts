@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyServerOptions } from 'fastify';
+import cors from '@fastify/cors';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
@@ -16,6 +17,11 @@ export interface AppDeps {
   publicBaseUrl?: string;
   /** Serve Swagger UI at /docs (off in production by default). */
   docsUi?: boolean;
+  /**
+   * Browser origins allowed to call the API (exact match, e.g. https://app.replit.app).
+   * Empty = no cross-origin browser access. Auth is a bearer token, so no cookies are allowed.
+   */
+  corsOrigins?: string[];
 }
 
 const REQUEST_ID_RE = /^[A-Za-z0-9._-]{8,128}$/;
@@ -29,6 +35,16 @@ export async function buildApp(deps: AppDeps) {
     },
     ajv: { customOptions: { removeAdditional: false } },
   }).withTypeProvider<TypeBoxTypeProvider>();
+
+  const origins = new Set(deps.corsOrigins ?? []);
+  await app.register(cors, {
+    origin: (origin, cb) => cb(null, !!origin && origins.has(origin)),
+    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    allowedHeaders: ['authorization', 'content-type', 'x-organization-id', 'idempotency-key', 'x-request-id'],
+    exposedHeaders: ['x-request-id', 'idempotent-replayed'],
+    credentials: false,
+    maxAge: 600,
+  });
 
   app.addHook('onSend', async (req, reply) => {
     reply.header('x-request-id', req.id);
