@@ -224,3 +224,54 @@ export const errorResponses = {
 
 export const Page = <T extends TSchema>(item: T) =>
   Type.Object({ data: Type.Array(item), next_cursor: Nullable(Type.String()) });
+
+const RoleSchema = Type.Union([Type.Literal('owner'), Type.Literal('staff')]);
+
+export const Invitation = Type.Object(
+  {
+    id: Type.String({ format: 'uuid' }),
+    role: RoleSchema,
+    email: Nullable(Type.String()),
+    status: Type.Union([
+      Type.Literal('pending'),
+      Type.Literal('accepted'),
+      Type.Literal('revoked'),
+      Type.Literal('expired'),
+    ]),
+    expires_at: Type.String({ format: 'date-time' }),
+    accepted_at: Nullable(Type.String({ format: 'date-time' })),
+    created_at: Type.String({ format: 'date-time' }),
+  },
+  { title: 'Invitation' },
+);
+
+export const InvitationCreate = Type.Object(
+  {
+    role: Type.Optional(RoleSchema),
+    email: Type.Optional(Nullable(Type.String({ format: 'email', maxLength: 320 }))),
+  },
+  { title: 'InvitationCreate', additionalProperties: false },
+);
+
+export const InvitationCreated = Type.Object(
+  {
+    invitation: Invitation,
+    invite_token: Type.String({
+      description:
+        'Shown once and never stored. Put it in the invite link fragment (e.g. /join#<token>), not a query string.',
+    }),
+  },
+  { title: 'InvitationCreated' },
+);
+
+export const Member = Type.Object(
+  {
+    id: Type.String({ format: 'uuid', description: 'Membership id' }),
+    account_id: Type.String({ format: 'uuid' }),
+    display_name: Nullable(Type.String()),
+    email: Nullable(Type.String()),
+    role: RoleSchema,
+    joined_at: Type.String({ format: 'date-time' }),
+  },
+  { title: 'Member' },
+);

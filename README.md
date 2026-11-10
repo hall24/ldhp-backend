@@ -11,7 +11,7 @@ Tests run against an in-process Postgres (PGlite), so no database is needed to r
 
 ```bash
 npm install
-npm test                 # 50 tests, no external services
+npm test                 # 61 tests, no external services
 cp .env.example .env     # fill in dev values from the dev Key Vault
 npm run db:migrate       # apply drizzle/ migrations (uses DATABASE_MIGRATION_URL)
 npm run db:seed          # synthetic test data (refuses NODE_ENV=production)
@@ -61,6 +61,11 @@ Contract: [`openapi/openapi.json`](openapi/openapi.json), regenerated with `npm 
 | PATCH | `/v1/customers/{id}` | partial edit, incl. `suppressed` |
 | DELETE | `/v1/customers/{id}` | owners only; soft delete |
 | PATCH / DELETE | `/v1/customers/{id}/service-records/{recordId}` | correct dates (due date recomputed or set directly); soft delete |
+| POST / GET | `/v1/invitations` | owners: create a 7-day single-use invite link (token shown once, only its hash stored), list pending |
+| DELETE | `/v1/invitations/{id}` | owners: revoke a pending invite |
+| POST | `/v1/invitations/accept` | signed-in user joins with a token; unknown/expired/revoked/used all return the same 404 |
+| GET | `/v1/members` | active members |
+| PATCH / DELETE | `/v1/members/{id}` | owners: change role, revoke access; the last owner is protected |
 
 Errors always look like `{ "error": { "code", "message", "request_id" } }`.
 
@@ -102,4 +107,4 @@ Read from environment variables only. Real values live in Azure Key Vault (separ
 
 ## Not yet built (R1)
 
-Staff invites, outreach sending + consent enforcement at dispatch, signed intake links, CSV import/export, Stripe Billing, SendGrid, scheduler, file storage, support access, retention jobs.
+Outreach sending + consent enforcement at dispatch, signed intake links, CSV import/export, Stripe Billing, SendGrid, scheduler, file storage, support access, retention jobs.
