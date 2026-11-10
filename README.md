@@ -11,7 +11,7 @@ Tests run against an in-process Postgres (PGlite), so no database is needed to r
 
 ```bash
 npm install
-npm test                 # 61 tests, no external services
+npm test                 # 74 tests, no external services
 cp .env.example .env     # fill in dev values from the dev Key Vault
 npm run db:migrate       # apply drizzle/ migrations (uses DATABASE_MIGRATION_URL)
 npm run db:seed          # synthetic test data (refuses NODE_ENV=production)
@@ -66,6 +66,13 @@ Contract: [`openapi/openapi.json`](openapi/openapi.json), regenerated with `npm 
 | POST | `/v1/invitations/accept` | signed-in user joins with a token; unknown/expired/revoked/used all return the same 404 |
 | GET | `/v1/members` | active members |
 | PATCH / DELETE | `/v1/members/{id}` | owners: change role, revoke access; the last owner is protected |
+| GET / POST | `/v1/customers/{id}/consents` | contact permissions (channel, contact, purpose, source, time) |
+| POST | `/v1/customers/{id}/consents/{consentId}/withdraw` | opt-out, kept as suppression |
+| POST | `/v1/customers/{id}/intake-requests` | create a 14-day customer response link (token shown once, hash stored) |
+| GET | `/v1/intake-requests?status=open` | intake queue, cursor pagination |
+| GET / PATCH | `/v1/intake-requests/{id}` | detail with status history; staff move it to contacted / scheduled_externally / not_proceeding / unable_to_reach |
+| POST | `/v1/intake-requests/{id}/revoke-link` | kill the customer link |
+| POST | `/v1/public/intake/view`, `/v1/public/intake/respond` | **no auth**: customer opens their link and answers; token in body, never URL; optional unsubscribe |
 
 Errors always look like `{ "error": { "code", "message", "request_id" } }`.
 
@@ -107,4 +114,4 @@ Read from environment variables only. Real values live in Azure Key Vault (separ
 
 ## Not yet built (R1)
 
-Outreach sending + consent enforcement at dispatch, signed intake links, CSV import/export, Stripe Billing, SendGrid, scheduler, file storage, support access, retention jobs.
+Outreach sending (consent check is ready in `checkEligibility`), CSV import/export, Stripe Billing, SendGrid, scheduler, file storage, support access, retention jobs.
