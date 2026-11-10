@@ -18,6 +18,12 @@ const EnvSchema = z.object({
   CLERK_AUTHORIZED_PARTIES: z.string().optional(),
   /** Public base URL used in OpenAPI `servers`. */
   PUBLIC_BASE_URL: z.string().default('http://localhost:3000'),
+  /** SendGrid API key (Key Vault secret sendgrid-api-key). Absent = email sending disabled. */
+  SENDGRID_API_KEY: z.string().optional(),
+  /** Sending address on a domain verified in SendGrid, e.g. reminders@mail.living-data.com. */
+  EMAIL_FROM_ADDRESS: z.string().email().optional(),
+  /** Front-end origin that serves the customer pages /r and /unsubscribe, e.g. https://app.replit.app. */
+  PUBLIC_APP_URL: z.string().url().optional(),
 });
 
 export type AppConfig = z.infer<typeof EnvSchema> & { clerkAuthorizedParties: string[] };

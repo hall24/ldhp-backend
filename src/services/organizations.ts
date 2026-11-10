@@ -13,6 +13,8 @@ export interface OrganizationSettings {
   messageFromName?: string | null;
   serviceTypes?: string[];
   serviceArea?: string | null;
+  replyToEmail?: string | null;
+  mailingAddress?: string | null;
 }
 
 /** True if `tz` is an IANA zone the runtime understands (the due queue depends on it). */
@@ -47,6 +49,8 @@ export function toOrganizationDto(o: OrganizationRow, role?: string) {
     message_from_name: o.messageFromName,
     service_types: o.serviceTypes,
     service_area: o.serviceArea,
+    reply_to_email: o.replyToEmail,
+    mailing_address: o.mailingAddress,
     created_at: o.createdAt.toISOString(),
     updated_at: o.updatedAt.toISOString(),
     ...(role ? { role } : {}),
@@ -59,6 +63,8 @@ const auditView = (o: OrganizationRow) => ({
   message_from_name: o.messageFromName,
   service_types: o.serviceTypes,
   service_area: o.serviceArea,
+  reply_to_email: o.replyToEmail,
+  mailing_address: o.mailingAddress,
 });
 
 /**
@@ -88,6 +94,8 @@ export async function createOrganization(
           messageFromName: input.messageFromName ?? null,
           serviceTypes: input.serviceTypes ?? [],
           serviceArea: input.serviceArea ?? null,
+          replyToEmail: input.replyToEmail ?? null,
+          mailingAddress: input.mailingAddress ?? null,
           createdBy: actor.accountId,
           creationKey: opts.idempotencyKey ?? null,
         })

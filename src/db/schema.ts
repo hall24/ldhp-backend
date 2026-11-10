@@ -95,6 +95,10 @@ export const organizations = pgTable(
     .default(sql`'{}'::text[]`),
   /** Free-text service area, e.g. "Bergen County, NJ". */
   serviceArea: text('service_area'),
+  /** Where customer replies to outreach email go (the business's own inbox). */
+  replyToEmail: text('reply_to_email'),
+  /** Postal address printed in every outreach email footer (required to send; CAN-SPAM). */
+  mailingAddress: text('mailing_address'),
   createdBy: uuid('created_by').references(() => accounts.id),
   /** Idempotency-Key of the create request, so a retried signup can't make two workspaces. */
   creationKey: text('creation_key'),
@@ -261,6 +265,15 @@ export const outreachCampaigns = pgTable(
       .references(() => organizations.id),
     name: text('name').notNull(),
     channel: channel('channel').notNull(),
+    /** Which consent rules apply at send time (see services/consent.ts checkEligibility). */
+    purpose: consentPurpose('purpose').notNull().default('service_reminders'),
+    /** What the campaign is about, e.g. the service type that came due. Copied to each intake request. */
+    serviceType: text('service_type'),
+    /** The customers staff picked (e.g. from the due queue). Eligibility is re-checked per send. */
+    audienceCustomerIds: uuid('audience_customer_ids')
+      .array()
+      .notNull()
+      .default(sql`'{}'::uuid[]`),
     status: campaignStatus('status').notNull().default('draft'),
     templateSubject: text('template_subject'),
     templateBody: text('template_body').notNull(),
@@ -293,6 +306,8 @@ export const outreachMessages = pgTable(
     providerResult: jsonb('provider_result'),
     /** Prevents duplicate sends on retry (PRD §9). */
     idempotencyKey: text('idempotency_key').notNull(),
+    /** SHA-256 of the unsubscribe token in this message. The token itself is never stored. */
+    unsubscribeTokenHash: text('unsubscribe_token_hash').unique(),
     sentAt: timestamp('sent_at', { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

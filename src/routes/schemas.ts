@@ -38,6 +38,7 @@ export const Customer = Type.Object(
 );
 
 const optStr = (max: number) => Type.Optional(Nullable(Type.String({ maxLength: max })));
+const optEmail = Type.Optional(Nullable(Type.String({ format: 'email', maxLength: 320 })));
 
 export const CustomerCreate = Type.Object(
   {
@@ -96,6 +97,10 @@ export const Organization = Type.Object(
     message_from_name: Nullable(Type.String()),
     service_types: Type.Array(Type.String()),
     service_area: Nullable(Type.String()),
+    reply_to_email: Nullable(Type.String({ description: 'Customer replies to outreach email go here.' })),
+    mailing_address: Nullable(
+      Type.String({ description: 'Printed in every outreach email footer. Required before sending email.' }),
+    ),
     created_at: Type.String({ format: 'date-time' }),
     updated_at: Type.String({ format: 'date-time' }),
     role: Type.Union([Type.Literal('owner'), Type.Literal('staff')], {
@@ -112,6 +117,8 @@ export const OrganizationCreate = Type.Object(
     message_from_name: optStr(200),
     service_types: Type.Optional(serviceTypeList),
     service_area: optStr(500),
+    reply_to_email: optEmail,
+    mailing_address: optStr(500),
   },
   { title: 'OrganizationCreate', additionalProperties: false },
 );
@@ -123,6 +130,8 @@ export const OrganizationUpdate = Type.Object(
     message_from_name: optStr(200),
     service_types: Type.Optional(serviceTypeList),
     service_area: optStr(500),
+    reply_to_email: optEmail,
+    mailing_address: optStr(500),
   },
   { title: 'OrganizationUpdate', additionalProperties: false, minProperties: 1 },
 );
@@ -276,8 +285,8 @@ export const Member = Type.Object(
   { title: 'Member' },
 );
 
-const ChannelSchema = Type.Union([Type.Literal('email'), Type.Literal('sms')]);
-const PurposeSchema = Type.Union([Type.Literal('service_reminders'), Type.Literal('marketing')]);
+export const ChannelSchema = Type.Union([Type.Literal('email'), Type.Literal('sms')]);
+export const PurposeSchema = Type.Union([Type.Literal('service_reminders'), Type.Literal('marketing')]);
 
 export const Consent = Type.Object(
   {
@@ -355,4 +364,121 @@ export const IntakeEvent = Type.Object(
     occurred_at: Type.String({ format: 'date-time' }),
   },
   { title: 'IntakeEvent' },
+);
+
+// ------------------------------------------------------------------ outreach
+
+const SkipReasonSchema = Type.Union(
+  ['customer_deleted', 'customer_suppressed', 'no_contact', 'opted_out', 'no_consent'].map((s) => Type.Literal(s)),
+  { description: 'Why a customer will not / did not get the message.' },
+);
+
+const templateHelp =
+  'Plain text. Placeholders: {{customer_name}}, {{business_name}}, {{service_type}}, {{response_link}}. ' +
+  'If {{response_link}} is missing, a reply link is added at the end. A footer with your business name, ' +
+  'mailing address and an unsubscribe link is always added.';
+
+export const Campaign = Type.Object(
+  {
+    id: Type.String({ format: 'uuid' }),
+    name: Type.String(),
+    channel: ChannelSchema,
+    purpose: PurposeSchema,
+    service_type: Nullable(Type.String()),
+    status: Type.Union([Type.Literal('draft'), Type.Literal('sending'), Type.Literal('sent'), Type.Literal('cancelled')]),
+    subject: Nullable(Type.String()),
+    body: Type.String(),
+    template_version: Type.Integer({ description: 'Goes up each time subject or body changes.' }),
+    customer_ids: Type.Array(Type.String({ format: 'uuid' })),
+    audience_size: Type.Integer(),
+    created_by: Nullable(Type.String()),
+    approved_by: Nullable(Type.String({ description: 'Who pressed Send.' })),
+    sent_at: Nullable(Type.String({ format: 'date-time' })),
+    created_at: Type.String({ format: 'date-time' }),
+    updated_at: Type.String({ format: 'date-time' }),
+    results: Nullable(
+      Type.Object({
+        sent: Type.Integer(),
+        failed: Type.Integer(),
+        suppressed: Type.Integer({ description: 'Skipped at send time (opted out, no email, suppressed...).' }),
+        queued: Type.Integer(),
+      }),
+    ),
+  },
+  { title: 'Campaign' },
+);
+
+export const CampaignCreate = Type.Object(
+  {
+    name: Type.String({ minLength: 1, maxLength: 200 }),
+    channel: Type.Optional(ChannelSchema),
+    purpose: Type.Optional(PurposeSchema),
+    service_type: Type.Optional(Nullable(Type.String({ maxLength: 100 }))),
+    subject: Type.String({ minLength: 1, maxLength: 200 }),
+    body: Type.String({ minLength: 1, maxLength: 5000, description: templateHelp }),
+    customer_ids: Type.Array(Type.String({ format: 'uuid' }), { minItems: 1, maxItems: 200 }),
+  },
+  { title: 'CampaignCreate', additionalProperties: false },
+);
+
+export const CampaignUpdate = Type.Object(
+  {
+    name: Type.Optional(Type.String({ minLength: 1, maxLength: 200 })),
+    purpose: Type.Optional(PurposeSchema),
+    service_type: Type.Optional(Nullable(Type.String({ maxLength: 100 }))),
+    subject: Type.Optional(Type.String({ minLength: 1, maxLength: 200 })),
+    body: Type.Optional(Type.String({ minLength: 1, maxLength: 5000, description: templateHelp })),
+    customer_ids: Type.Optional(Type.Array(Type.String({ format: 'uuid' }), { minItems: 1, maxItems: 200 })),
+  },
+  { title: 'CampaignUpdate', additionalProperties: false, minProperties: 1 },
+);
+
+export const CampaignPreview = Type.Object(
+  {
+    recipients: Type.Array(
+      Type.Object({
+        customer_id: Type.String({ format: 'uuid' }),
+        customer_name: Nullable(Type.String()),
+        email: Nullable(Type.String()),
+        will_send: Type.Boolean(),
+        reason: Nullable(SkipReasonSchema),
+      }),
+    ),
+    summary: Type.Object({ total: Type.Integer(), will_send: Type.Integer(), skipped: Type.Integer() }),
+    sample: Nullable(
+      Type.Object(
+        { to: Type.String(), subject: Type.String(), text: Type.String(), html: Type.String() },
+        { description: 'The email as the first eligible customer would get it, with example links.' },
+      ),
+    ),
+    sender: Type.Object({
+      from_name: Type.String(),
+      from_email: Nullable(Type.String()),
+      reply_to: Nullable(Type.String()),
+      mailing_address: Nullable(Type.String()),
+      ready: Type.Boolean({ description: 'False means Send will be refused; see problems.' }),
+      problems: Type.Array(
+        Type.Union([Type.Literal('email_not_configured'), Type.Literal('mailing_address_missing')]),
+      ),
+    }),
+  },
+  { title: 'CampaignPreview' },
+);
+
+export const OutreachMessage = Type.Object(
+  {
+    id: Type.String({ format: 'uuid' }),
+    customer_id: Type.String({ format: 'uuid' }),
+    customer_name: Type.String(),
+    recipient: Type.String(),
+    status: Type.Union(['queued', 'sent', 'delivered', 'failed', 'suppressed'].map((s) => Type.Literal(s))),
+    suppression_reason: Nullable(SkipReasonSchema),
+    failure_code: Nullable(Type.String()),
+    template_version: Type.Integer(),
+    consent_record_id: Nullable(Type.String({ format: 'uuid' })),
+    intake_request_id: Nullable(Type.String({ format: 'uuid' })),
+    sent_at: Nullable(Type.String({ format: 'date-time' })),
+    created_at: Type.String({ format: 'date-time' }),
+  },
+  { title: 'OutreachMessage' },
 );

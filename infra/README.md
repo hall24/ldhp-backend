@@ -47,3 +47,20 @@ A $10 monthly budget alert on the subscription is the backstop.
 Set GitHub variable `CLERK_AUTHORIZED_PARTIES` to the front end's exact origin(s), comma-separated
 (e.g. `https://pro-app.replit.app,https://pro-app-dev.replit.dev`), and re-run the workflow. The API
 then accepts browser calls (CORS) and Clerk tokens only from those origins.
+
+## Turning on outreach email (SendGrid)
+
+Until these are set, staff can draft and preview campaigns, but Send returns `503 email_not_configured`.
+
+1. In SendGrid, authenticate a sending domain (e.g. `mail.living-data.com`) with the DNS records it gives you, and
+   create an API key with **Mail Send** permission only.
+2. Add the key to the dev vault as secret `sendgrid-api-key`.
+3. GitHub variables in the `dev` environment:
+   - `EMAIL_FROM_ADDRESS`: an address on that domain, e.g. `reminders@mail.living-data.com`. The business name is
+     shown as the sender name, and customer replies go to the workspace's `reply_to_email`.
+   - `PUBLIC_APP_URL`: the front-end origin that serves `/r` (customer response) and `/unsubscribe`.
+   - `LDHP_SENDGRID_READY`: `true`.
+4. Re-run deploy-dev.
+
+Each workspace must also save a `mailing_address` in Settings before it can send (it's printed in every email
+footer). Click and open tracking are turned off so link tokens never pass through SendGrid's redirector.

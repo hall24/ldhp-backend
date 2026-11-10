@@ -9,6 +9,7 @@ import type { TokenVerifier } from './auth/verifier.js';
 import { authPlugin, ORG_HEADER } from './auth/plugin.js';
 import { v1Routes } from './routes/v1.js';
 import { ApiError } from './lib/errors.js';
+import type { Mailer } from './lib/mailer.js';
 
 export interface AppDeps {
   db: Db;
@@ -22,6 +23,14 @@ export interface AppDeps {
    * Empty = no cross-origin browser access. Auth is a bearer token, so no cookies are allowed.
    */
   corsOrigins?: string[];
+  /** Outreach email. Without a mailer, sending returns 503 email_not_configured (preview still works). */
+  email?: {
+    mailer?: Mailer | null;
+    /** Platform sending address on a verified domain. */
+    fromAddress?: string | null;
+    /** Front-end origin serving /r and /unsubscribe pages. */
+    appBaseUrl?: string | null;
+  };
 }
 
 const REQUEST_ID_RE = /^[A-Za-z0-9._-]{8,128}$/;
@@ -98,6 +107,15 @@ export async function buildApp(deps: AppDeps) {
   );
 
   await app.register(authPlugin, { db: deps.db, verifier: deps.verifier });
-  await app.register(v1Routes, { prefix: '/v1', db: deps.db });
+  await app.register(v1Routes, {
+    prefix: '/v1',
+    db: deps.db,
+    outreach: {
+      mailer: deps.email?.mailer ?? null,
+      fromAddress: deps.email?.fromAddress ?? null,
+      appBaseUrl: deps.email?.appBaseUrl?.replace(/\/+$/, '') ?? null,
+      apiBaseUrl: (deps.publicBaseUrl ?? 'http://localhost:3000').replace(/\/+$/, ''),
+    },
+  });
   return app;
 }
