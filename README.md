@@ -18,6 +18,12 @@ npm run db:seed          # synthetic test data (refuses NODE_ENV=production)
 npm run dev              # http://localhost:3000, Swagger UI at /docs
 ```
 
+## Neon branches
+
+- `dev`: long-lived shared development database (migrated + synthetic seed). The hosted dev API and Replit front ends use it. Get its env with `neon checkout dev` (writes `.env.local`).
+- `production`: untouched until launch.
+- Other branches created with `neon checkout <name> --create` auto-expire after 7 days (see `neon.ts`).
+
 ## How authorization works
 
 1. Every request carries a Clerk session token (`Authorization: Bearer ...`). The API verifies it and maps the Clerk user to a platform `account`.
