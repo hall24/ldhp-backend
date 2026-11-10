@@ -22,3 +22,5 @@ jobs:
         run: |
           npm run openapi:export
           git diff --exit-code openapi/openapi.json
+      - name: Azure infrastructure template compiles
+        run: az bicep build --file infra/main.bicep --stdout > /dev/null

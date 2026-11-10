@@ -1,0 +1,43 @@
+# Dev hosting on Azure Container Apps
+
+`main.bicep` creates everything in one resource group (`rg-ldhp-dev`). The deploy
+workflow `.github/workflows/deploy-dev.yml` runs it from GitHub with federated sign-in
+(no stored Azure password), only from `main`, and only after the owner approves the run
+in the GitHub `dev` environment.
+
+| Resource | Name | Why |
+|---|---|---|
+| Container Apps environment + app | `cae-ldhp-dev`, `ca-ldhp-dev` | Runs the API. Consumption plan, 0.25 vCPU / 0.5 GiB, 0-2 replicas |
+| Container registry (Basic) | `crldhpdev…` | Holds the API image, private |
+| Key Vault | `kv-ldhp-dev-…` | Holds the API's secrets; the app reads them with its own identity |
+| Managed identity | `id-ldhp-dev` | The app's identity for Key Vault |
+| Log Analytics | `log-ldhp-dev` | App logs, 30-day retention, 0.15 GB/day cap |
+
+## Expected cost (list prices, verify in the Azure pricing calculator)
+
+- Container Apps, scale to zero: the monthly free grant (180,000 vCPU-seconds, 360,000 GiB-seconds,
+  2M requests) covers dev and light pilot traffic: about **$0**.
+- Container Registry Basic: about **$5/month**.
+- Key Vault, Log Analytics (under the 5 GB/month free tier): about **$0**.
+- Total: **about $5-10/month**. Always on (`LDHP_MIN_REPLICAS=1`) adds roughly $5-15/month.
+
+A $10 monthly budget alert on the subscription is the backstop.
+
+## First-time setup (owner)
+
+1. Done already: resource group, `ldhp-github-deploy` app with Contributor on the group,
+   federated credential for environment `dev`, GitHub `dev` environment, the three `AZURE_*` variables.
+2. Add GitHub variable `AZURE_ADMIN_OBJECT_ID`: Entra ID > Users > you > **Object ID**.
+3. Run **Actions > deploy-dev > Run workflow** and approve it. This creates the resources with a
+   placeholder app (no secrets yet). The run summary names the Key Vault.
+4. In that Key Vault > **Secrets** > **Generate/Import**, add:
+   - `database-url`: Neon **pooled** connection string for the `dev` branch
+   - `database-url-unpooled`: Neon **direct** connection string (used only for migrations)
+   - `clerk-secret-key`: Clerk **development** instance secret key
+5. Set GitHub variable `LDHP_SECRETS_READY` = `true` and run the workflow again. It builds the image,
+   applies migrations, rolls out, and checks `/v1/health/db`. The URL is in the run summary.
+
+## Switching cost modes
+
+- Always on (no cold start): set `LDHP_MIN_REPLICAS` = `1`, rerun the workflow.
+- Back to scale to zero: set it to `0`.
