@@ -41,3 +41,9 @@ A $10 monthly budget alert on the subscription is the backstop.
 
 - Always on (no cold start): set `LDHP_MIN_REPLICAS` = `1`, rerun the workflow.
 - Back to scale to zero: set it to `0`.
+
+## Letting a front end call the API
+
+Set GitHub variable `CLERK_AUTHORIZED_PARTIES` to the front end's exact origin(s), comma-separated
+(e.g. `https://pro-app.replit.app,https://pro-app-dev.replit.dev`), and re-run the workflow. The API
+then accepts browser calls (CORS) and Clerk tokens only from those origins.

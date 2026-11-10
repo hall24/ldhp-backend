@@ -260,3 +260,30 @@ describe('audit trail endpoint', () => {
     expect(actions).toContain('customer.created');
   });
 });
+
+describe('browser access (CORS)', () => {
+  it('allows only configured origins', async () => {
+    const { buildApp } = await import('../src/app.js');
+    const { fakeVerifier } = await import('./helpers/app.js');
+    const app = await buildApp({ db: t.db, verifier: fakeVerifier, corsOrigins: ['https://pro.example.app'] });
+    const pre = (origin: string) =>
+      app.inject({
+        method: 'OPTIONS',
+        url: '/v1/customers',
+        headers: {
+          origin,
+          'access-control-request-method': 'GET',
+          'access-control-request-headers': 'authorization,x-organization-id',
+        },
+      });
+    const ok = await pre('https://pro.example.app');
+    expect(ok.headers['access-control-allow-origin']).toBe('https://pro.example.app');
+    expect(String(ok.headers['access-control-allow-headers'])).toContain('x-organization-id');
+    const bad = await pre('https://evil.example');
+    expect(bad.headers['access-control-allow-origin']).toBeUndefined();
+    const get = await app.inject({ method: 'GET', url: '/v1/health', headers: { origin: 'https://pro.example.app' } });
+    expect(get.headers['access-control-allow-origin']).toBe('https://pro.example.app');
+    expect(get.headers['access-control-expose-headers']).toContain('x-request-id');
+    await app.close();
+  });
+});

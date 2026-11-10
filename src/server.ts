@@ -18,6 +18,8 @@ const app = await buildApp({
   },
   publicBaseUrl: config.PUBLIC_BASE_URL,
   docsUi: config.NODE_ENV !== 'production',
+  // The same front-end origins Clerk accepts tokens from may call the API from a browser.
+  corsOrigins: config.clerkAuthorizedParties,
 });
 
 const shutdown = async () => {
