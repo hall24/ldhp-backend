@@ -336,6 +336,9 @@ export const intakeRequests = pgTable(
     status: intakeStatus('status').notNull().default('awaiting_response'),
     response: intakeResponse('response'),
     customerNote: text('customer_note'),
+    /** What the request is about, e.g. the service type that came due. */
+    serviceType: text('service_type'),
+    createdBy: uuid('created_by').references(() => accounts.id),
     linkTokenHash: text('link_token_hash').notNull().unique(),
     linkExpiresAt: timestamp('link_expires_at', { withTimezone: true }).notNull(),
     linkRevokedAt: timestamp('link_revoked_at', { withTimezone: true }),
@@ -356,7 +359,32 @@ export const intakeRequests = pgTable(
       columns: [t.organizationId, t.outreachMessageId],
       foreignColumns: [outreachMessages.organizationId, outreachMessages.id],
     }),
+    unique('intake_requests_org_id_uq').on(t.organizationId, t.id),
     index('intake_requests_org_status_idx').on(t.organizationId, t.status, t.createdAt),
+  ],
+);
+
+/** Status history of an intake request: who changed it, when, and from what (PRD §4 step 8). */
+export const intakeEvents = pgTable(
+  'intake_events',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    organizationId: uuid('organization_id').notNull(),
+    intakeRequestId: uuid('intake_request_id').notNull(),
+    fromStatus: intakeStatus('from_status'),
+    toStatus: intakeStatus('to_status').notNull(),
+    actorType: actorType('actor_type').notNull(),
+    actorAccountId: uuid('actor_account_id').references(() => accounts.id),
+    note: text('note'),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    foreignKey({
+      name: 'intake_events_request_fk',
+      columns: [t.organizationId, t.intakeRequestId],
+      foreignColumns: [intakeRequests.organizationId, intakeRequests.id],
+    }),
+    index('intake_events_request_idx').on(t.organizationId, t.intakeRequestId, t.occurredAt),
   ],
 );
 

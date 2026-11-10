@@ -1,6 +1,6 @@
 import type { Db } from '../db/client.js';
 
-export type ActorType = 'user' | 'agent' | 'system';
+export type ActorType = 'user' | 'agent' | 'system' | 'customer_link';
 
 export interface Actor {
   type: ActorType;

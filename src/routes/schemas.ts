@@ -1,6 +1,6 @@
 import { Type, type TSchema } from '@sinclair/typebox';
 
-const Nullable = <T extends TSchema>(t: T) => Type.Union([t, Type.Null()]);
+export const Nullable = <T extends TSchema>(t: T) => Type.Union([t, Type.Null()]);
 
 export const ErrorResponse = Type.Object(
   {
@@ -274,4 +274,85 @@ export const Member = Type.Object(
     joined_at: Type.String({ format: 'date-time' }),
   },
   { title: 'Member' },
+);
+
+const ChannelSchema = Type.Union([Type.Literal('email'), Type.Literal('sms')]);
+const PurposeSchema = Type.Union([Type.Literal('service_reminders'), Type.Literal('marketing')]);
+
+export const Consent = Type.Object(
+  {
+    id: Type.String({ format: 'uuid' }),
+    customer_id: Type.String({ format: 'uuid' }),
+    channel: ChannelSchema,
+    contact_value: Type.String(),
+    purpose: PurposeSchema,
+    source: Type.String(),
+    granted_at: Type.String({ format: 'date-time' }),
+    withdrawn_at: Nullable(Type.String({ format: 'date-time' })),
+    withdrawal_source: Nullable(Type.String()),
+    status: Type.Union([Type.Literal('active'), Type.Literal('withdrawn')]),
+    created_at: Type.String({ format: 'date-time' }),
+  },
+  { title: 'Consent' },
+);
+
+export const ConsentCreate = Type.Object(
+  {
+    channel: ChannelSchema,
+    purpose: PurposeSchema,
+    contact_value: Type.Optional(
+      Nullable(Type.String({ maxLength: 320, description: "Defaults to the customer's email or phone." })),
+    ),
+    source: Type.String({
+      minLength: 1,
+      maxLength: 100,
+      description: 'How permission was given, e.g. paper_form, web_form, verbal_recorded.',
+    }),
+    evidence: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+    granted_at: Type.Optional(Type.String({ format: 'date-time' })),
+  },
+  { title: 'ConsentCreate', additionalProperties: false },
+);
+
+const IntakeStatusSchema = Type.Union(
+  ['awaiting_response', 'received', 'contacted', 'scheduled_externally', 'not_proceeding', 'unable_to_reach'].map(
+    (s) => Type.Literal(s),
+  ),
+);
+export const IntakeResponseSchema = Type.Union([
+  Type.Literal('request_service'),
+  Type.Literal('decline'),
+  Type.Literal('contact_me'),
+]);
+
+export const IntakeRequest = Type.Object(
+  {
+    id: Type.String({ format: 'uuid' }),
+    customer_id: Type.String({ format: 'uuid' }),
+    customer_name: Type.Optional(Type.String()),
+    service_type: Nullable(Type.String()),
+    status: IntakeStatusSchema,
+    response: Nullable(IntakeResponseSchema),
+    customer_note: Nullable(Type.String()),
+    responded_at: Nullable(Type.String({ format: 'date-time' })),
+    link_state: Type.Union([Type.Literal('active'), Type.Literal('expired'), Type.Literal('revoked')]),
+    link_expires_at: Type.String({ format: 'date-time' }),
+    status_changed_at: Nullable(Type.String({ format: 'date-time' })),
+    status_changed_by: Nullable(Type.String()),
+    created_at: Type.String({ format: 'date-time' }),
+    updated_at: Type.String({ format: 'date-time' }),
+  },
+  { title: 'IntakeRequest' },
+);
+
+export const IntakeEvent = Type.Object(
+  {
+    from_status: Nullable(IntakeStatusSchema),
+    to_status: IntakeStatusSchema,
+    actor_type: Type.String(),
+    actor_account_id: Nullable(Type.String()),
+    note: Nullable(Type.String()),
+    occurred_at: Type.String({ format: 'date-time' }),
+  },
+  { title: 'IntakeEvent' },
 );
