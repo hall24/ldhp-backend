@@ -64,3 +64,22 @@ Until these are set, staff can draft and preview campaigns, but Send returns `50
 
 Each workspace must also save a `mailing_address` in Settings before it can send (it's printed in every email
 footer). Click and open tracking are turned off so link tokens never pass through SendGrid's redirector.
+
+## Running the API as the least-privilege database role
+
+Migration `0007_app_role.sql` creates `ldhp_app` (no login yet). It can read and write rows, can only append to
+`audit_events`, and cannot change the schema, truncate tables or manage roles. Deploys keep running migrations as
+the owner through `database-url-unpooled`; only the running API switches.
+
+Do this per environment, testing on a throwaway Neon branch first:
+
+1. In the Neon Console, create a branch from `dev` (e.g. `role-test`) and open its **SQL Editor**.
+2. Turn on login with a strong password (generate 32+ random letters and digits in your password manager):
+   `ALTER ROLE ldhp_app WITH LOGIN PASSWORD '<generated>';`
+3. Build the pooled URL: take the branch's pooled connection string and replace the user and password with
+   `ldhp_app` and the new password. Check it locally with `DATABASE_URL=<url> npm run db:smoke`.
+4. If that works, repeat steps 2-3 on `dev`, then set the vault secret `database-url` to the new URL (leave
+   `database-url-unpooled` as the owner) and re-run deploy-dev. `/v1/health/db` should say ok.
+5. Rollback: put the previous `database-url` value back and re-run deploy-dev.
+
+Delete the test branch afterwards. Never paste the password in chat or commit it.

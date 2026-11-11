@@ -27,12 +27,23 @@ try {
   ).rows;
   console.log(`connected: ${info?.db} / ${info?.version.split(',')[0]}`);
 
-  const [mig] = (
-    (await db.execute(sql`select count(*)::int as n from drizzle.__drizzle_migrations`)) as {
-      rows: { n: number }[];
-    }
+  const [who] = (
+    (await db.execute(
+      sql`select current_user as u, has_schema_privilege(current_user, 'public', 'CREATE') as can_ddl`,
+    )) as { rows: { u: string; can_ddl: boolean }[] }
   ).rows;
-  console.log(`migrations applied: ${mig?.n}`);
+  console.log(`role: ${who?.u}${who?.can_ddl ? ' (can change the schema: owner/migrator)' : ' (rows only: app role)'}`);
+
+  try {
+    const [mig] = (
+      (await db.execute(sql`select count(*)::int as n from drizzle.__drizzle_migrations`)) as {
+        rows: { n: number }[];
+      }
+    ).rows;
+    console.log(`migrations applied: ${mig?.n}`);
+  } catch {
+    console.log('migrations table: not visible to this role (expected for ldhp_app)');
+  }
 
   try {
     await db.transaction(async (tx) => {
