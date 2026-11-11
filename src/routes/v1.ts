@@ -33,6 +33,7 @@ import { workspaceRoutes } from './workspace.js';
 import { teamRoutes } from './team.js';
 import { intakeRoutes } from './intake.js';
 import { outreachRoutes } from './outreach.js';
+import { dataRoutes } from './data.js';
 import type { OutreachEnv } from '../services/outreach.js';
 
 const secured = [{ bearerAuth: [] }];
@@ -332,4 +333,5 @@ export const v1Routes: FastifyPluginAsyncTypebox<{ db: Db; outreach: OutreachEnv
   await app.register(teamRoutes, { db });
   await app.register(intakeRoutes, { db });
   await app.register(outreachRoutes, { db, outreach });
+  await app.register(dataRoutes, { db });
 };
