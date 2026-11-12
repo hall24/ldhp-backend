@@ -24,6 +24,10 @@ const EnvSchema = z.object({
   EMAIL_FROM_ADDRESS: z.string().email().optional(),
   /** Front-end origin that serves the customer pages /r and /unsubscribe, e.g. https://app.replit.app. */
   PUBLIC_APP_URL: z.string().url().optional(),
+  /** Requests per minute per client IP on unauthenticated /v1/public/* routes. 0 disables. */
+  PUBLIC_RATE_LIMIT_PER_MIN: z.coerce.number().int().min(0).default(30),
+  /** Trusted proxy hops for the client IP (Azure Container Apps ingress = 1). */
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
 });
 
 export type AppConfig = z.infer<typeof EnvSchema> & { clerkAuthorizedParties: string[] };
