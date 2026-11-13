@@ -7664,6 +7664,9 @@
                         "link_expires_at",
                         "status_changed_at",
                         "status_changed_by",
+                        "staff_notes",
+                        "staff_notes_updated_at",
+                        "staff_notes_updated_by",
                         "created_at",
                         "updated_at"
                       ],
@@ -7817,6 +7820,38 @@
                           ]
                         },
                         "status_changed_by": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "staff_notes": {
+                          "anyOf": [
+                            {
+                              "description": "Staff's working notes. Never shown to the customer.",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "staff_notes_updated_at": {
+                          "anyOf": [
+                            {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "staff_notes_updated_by": {
                           "anyOf": [
                             {
                               "type": "string"
@@ -8114,6 +8149,9 @@
                           "link_expires_at",
                           "status_changed_at",
                           "status_changed_by",
+                          "staff_notes",
+                          "staff_notes_updated_at",
+                          "staff_notes_updated_by",
                           "created_at",
                           "updated_at"
                         ],
@@ -8267,6 +8305,38 @@
                             ]
                           },
                           "status_changed_by": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "staff_notes": {
+                            "anyOf": [
+                              {
+                                "description": "Staff's working notes. Never shown to the customer.",
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "staff_notes_updated_at": {
+                            "anyOf": [
+                              {
+                                "format": "date-time",
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "staff_notes_updated_by": {
                             "anyOf": [
                               {
                                 "type": "string"
@@ -8504,6 +8574,9 @@
                         "link_expires_at",
                         "status_changed_at",
                         "status_changed_by",
+                        "staff_notes",
+                        "staff_notes_updated_at",
+                        "staff_notes_updated_by",
                         "created_at",
                         "updated_at"
                       ],
@@ -8657,6 +8730,38 @@
                           ]
                         },
                         "status_changed_by": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "staff_notes": {
+                          "anyOf": [
+                            {
+                              "description": "Staff's working notes. Never shown to the customer.",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "staff_notes_updated_at": {
+                          "anyOf": [
+                            {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "staff_notes_updated_by": {
                           "anyOf": [
                             {
                               "type": "string"
@@ -9073,6 +9178,9 @@
                     "link_expires_at",
                     "status_changed_at",
                     "status_changed_by",
+                    "staff_notes",
+                    "staff_notes_updated_at",
+                    "staff_notes_updated_by",
                     "created_at",
                     "updated_at"
                   ],
@@ -9226,6 +9334,38 @@
                       ]
                     },
                     "status_changed_by": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "staff_notes": {
+                      "anyOf": [
+                        {
+                          "description": "Staff's working notes. Never shown to the customer.",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "staff_notes_updated_at": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "staff_notes_updated_by": {
                       "anyOf": [
                         {
                           "type": "string"
@@ -9431,12 +9571,40 @@
         }
       }
     },
-    "/v1/intake-requests/{id}/revoke-link": {
-      "post": {
-        "summary": "Revoke the customer link (the request itself stays)",
+    "/v1/intake-requests/{id}/notes": {
+      "put": {
+        "summary": "Save staff notes on a request (doesn't change its status)",
         "tags": [
           "intake"
         ],
+        "description": "Replaces the notes with the text sent; null or blank clears them. Safe to call on every pause in typing (autosave): unchanged text is a no-op. Last write wins. Not visible to the customer.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "staff_notes"
+                ],
+                "properties": {
+                  "staff_notes": {
+                    "anyOf": [
+                      {
+                        "maxLength": 10000,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
         "parameters": [
           {
             "schema": {
@@ -9483,6 +9651,9 @@
                     "link_expires_at",
                     "status_changed_at",
                     "status_changed_by",
+                    "staff_notes",
+                    "staff_notes_updated_at",
+                    "staff_notes_updated_by",
                     "created_at",
                     "updated_at"
                   ],
@@ -9636,6 +9807,447 @@
                       ]
                     },
                     "status_changed_by": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "staff_notes": {
+                      "anyOf": [
+                        {
+                          "description": "Staff's working notes. Never shown to the customer.",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "staff_notes_updated_at": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "staff_notes_updated_by": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "created_at": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "updated_at": {
+                      "format": "date-time",
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Error",
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Error",
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Error",
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Error",
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "required": [
+                        "code",
+                        "message",
+                        "request_id"
+                      ],
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "request_id": {
+                          "type": "string"
+                        },
+                        "details": {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/intake-requests/{id}/revoke-link": {
+      "post": {
+        "summary": "Revoke the customer link (the request itself stays)",
+        "tags": [
+          "intake"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "in": "header",
+            "name": "x-organization-id",
+            "required": true,
+            "description": "Organization (workspace) context. The server verifies your membership."
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "IntakeRequest",
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "customer_id",
+                    "service_type",
+                    "status",
+                    "response",
+                    "customer_note",
+                    "responded_at",
+                    "link_state",
+                    "link_expires_at",
+                    "status_changed_at",
+                    "status_changed_by",
+                    "staff_notes",
+                    "staff_notes_updated_at",
+                    "staff_notes_updated_by",
+                    "created_at",
+                    "updated_at"
+                  ],
+                  "properties": {
+                    "id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "customer_id": {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "customer_name": {
+                      "type": "string"
+                    },
+                    "service_type": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "status": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "awaiting_response"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "received"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "contacted"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "scheduled_externally"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "not_proceeding"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "unable_to_reach"
+                          ]
+                        }
+                      ]
+                    },
+                    "response": {
+                      "anyOf": [
+                        {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "request_service"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "decline"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "contact_me"
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "customer_note": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "responded_at": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "link_state": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "active"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "expired"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "revoked"
+                          ]
+                        }
+                      ]
+                    },
+                    "link_expires_at": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "status_changed_at": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "status_changed_by": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "staff_notes": {
+                      "anyOf": [
+                        {
+                          "description": "Staff's working notes. Never shown to the customer.",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "staff_notes_updated_at": {
+                      "anyOf": [
+                        {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "staff_notes_updated_by": {
                       "anyOf": [
                         {
                           "type": "string"

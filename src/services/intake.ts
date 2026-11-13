@@ -49,6 +49,9 @@ export function toIntakeDto(r: IntakeRow, customerName?: string) {
     link_expires_at: r.linkExpiresAt.toISOString(),
     status_changed_at: r.statusChangedAt?.toISOString() ?? null,
     status_changed_by: r.statusChangedBy,
+    staff_notes: r.staffNotes,
+    staff_notes_updated_at: r.staffNotesUpdatedAt?.toISOString() ?? null,
+    staff_notes_updated_by: r.staffNotesUpdatedBy,
     created_at: r.createdAt.toISOString(),
     updated_at: r.updatedAt.toISOString(),
   };
@@ -199,6 +202,37 @@ export async function updateIntakeStatus(ctx: ScopedContext, id: string, to: Sta
       requestId: ctx.requestId,
       before: { status: row.status },
       after: { status: to },
+    });
+    return after!;
+  });
+}
+
+/**
+ * Save staff's working notes on a request without changing its status, so the
+ * request window can autosave. Last write wins. The note text is not copied into the
+ * audit trail (it may hold personal details); only that it changed and its length.
+ */
+export async function saveStaffNotes(ctx: ScopedContext, id: string, notes: string | null) {
+  const value = notes?.trim() ? notes : null;
+  return ctx.db.transaction(async (txRaw) => {
+    const tx = txRaw as unknown as Db;
+    const [row] = await tx.select().from(intakeRequests).where(scope(ctx, id)).for('update');
+    if (!row) throw Errors.notFound('Intake request');
+    if (row.staffNotes === value) return row; // autosave of unchanged text: no write, no audit
+    const now = new Date();
+    const [after] = await tx
+      .update(intakeRequests)
+      .set({ staffNotes: value, staffNotesUpdatedAt: now, staffNotesUpdatedBy: ctx.actor.accountId, updatedAt: now })
+      .where(scope(ctx, id))
+      .returning();
+    await recordAudit(tx, {
+      actor: ctx.actor,
+      organizationId: ctx.organizationId,
+      action: 'intake.notes_updated',
+      recordType: 'intake_request',
+      recordId: id,
+      requestId: ctx.requestId,
+      metadata: { length: value?.length ?? 0 },
     });
     return after!;
   });

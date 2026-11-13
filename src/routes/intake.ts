@@ -10,6 +10,7 @@ import {
   listIntakeRequests,
   respondByToken,
   revokeIntakeLink,
+  saveStaffNotes,
   STAFF_STATUSES,
   toIntakeDto,
   updateIntakeStatus,
@@ -235,6 +236,29 @@ export const intakeRoutes: FastifyPluginAsyncTypebox<{ db: Db }> = async (app, {
     },
     async (req) =>
       toIntakeDto(await updateIntakeStatus(scopedOf(req), req.params.id, req.body.status, req.body.note ?? null)),
+  );
+
+  app.put(
+    '/intake-requests/:id/notes',
+    {
+      onRequest: app.requireOrg(),
+      schema: {
+        tags: ['intake'],
+        summary: "Save staff notes on a request (doesn't change its status)",
+        description:
+          'Replaces the notes with the text sent; null or blank clears them. Safe to call on every pause in ' +
+          'typing (autosave): unchanged text is a no-op. Last write wins. Not visible to the customer.',
+        security: secured,
+        headers: OrgHeader,
+        params: IdParams,
+        body: Type.Object(
+          { staff_notes: Nullable(Type.String({ maxLength: 10000 })) },
+          { additionalProperties: false },
+        ),
+        response: { 200: IntakeRequest, ...errorResponses },
+      },
+    },
+    async (req) => toIntakeDto(await saveStaffNotes(scopedOf(req), req.params.id, req.body.staff_notes)),
   );
 
   app.post(

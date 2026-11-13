@@ -57,6 +57,13 @@
       "when": 1794370123043,
       "tag": "0007_app_role",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794582659574,
+      "tag": "0008_intake_staff_notes",
+      "breakpoints": true
     }
   ]
 }
