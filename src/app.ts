@@ -10,6 +10,7 @@ import { authPlugin, ORG_HEADER } from './auth/plugin.js';
 import { v1Routes } from './routes/v1.js';
 import { ApiError } from './lib/errors.js';
 import type { Mailer } from './lib/mailer.js';
+import { FixedWindowLimiter, type RateLimitOptions } from './lib/rate-limit.js';
 
 export interface AppDeps {
   db: Db;
@@ -23,6 +24,13 @@ export interface AppDeps {
    * Empty = no cross-origin browser access. Auth is a bearer token, so no cookies are allowed.
    */
   corsOrigins?: string[];
+  /** Per-IP limit for unauthenticated /v1/public/* routes. Omit to disable (tests). */
+  publicRateLimit?: RateLimitOptions;
+  /**
+   * Proxy hops in front of the API whose X-Forwarded-For entries are trusted for the
+   * client IP (Azure Container Apps ingress = 1). Omit when the API is reached directly.
+   */
+  trustProxyHops?: number;
   /** Outreach email. Without a mailer, sending returns 503 email_not_configured (preview still works). */
   email?: {
     mailer?: Mailer | null;
@@ -31,6 +39,21 @@ export interface AppDeps {
     /** Front-end origin serving /r and /unsubscribe pages. */
     appBaseUrl?: string | null;
   };
+}
+
+/**
+ * The client address as the outermost trusted proxy saw it. Each trusted proxy appends
+ * the address it received from, so with N trusted hops the client is the Nth entry
+ * from the right of X-Forwarded-For; anything further left could be spoofed.
+ */
+export function clientIp(xff: string | string[] | undefined, socketAddr: string | undefined, hops: number): string {
+  const fallback = socketAddr ?? 'unknown';
+  if (hops <= 0 || !xff) return fallback;
+  const list = (Array.isArray(xff) ? xff.join(',') : xff)
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return list[list.length - hops] ?? list[0] ?? fallback;
 }
 
 const REQUEST_ID_RE = /^[A-Za-z0-9._-]{8,128}$/;
@@ -58,6 +81,25 @@ export async function buildApp(deps: AppDeps) {
   app.addHook('onSend', async (req, reply) => {
     reply.header('x-request-id', req.id);
   });
+
+  if (deps.publicRateLimit) {
+    const limiter = new FixedWindowLimiter(deps.publicRateLimit);
+    app.addHook('onRequest', async (req, reply) => {
+      if (req.method === 'OPTIONS' || !req.url.startsWith('/v1/public/')) return;
+      const retryAfter = limiter.hit(clientIp(req.headers['x-forwarded-for'], req.socket.remoteAddress, deps.trustProxyHops ?? 0));
+      if (retryAfter === null) return;
+      return reply
+        .code(429)
+        .header('retry-after', String(retryAfter))
+        .send({
+          error: {
+            code: 'rate_limited',
+            message: 'Too many requests. Please wait a minute and try again.',
+            request_id: req.id,
+          },
+        });
+    });
+  }
 
   await app.register(swagger, {
     openapi: {

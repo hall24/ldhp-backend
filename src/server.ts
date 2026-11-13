@@ -29,6 +29,9 @@ const app = await buildApp({
   docsUi: config.NODE_ENV !== 'production',
   // The same front-end origins Clerk accepts tokens from may call the API from a browser.
   corsOrigins: config.clerkAuthorizedParties,
+  publicRateLimit:
+    config.PUBLIC_RATE_LIMIT_PER_MIN > 0 ? { max: config.PUBLIC_RATE_LIMIT_PER_MIN, windowMs: 60_000 } : undefined,
+  trustProxyHops: config.TRUST_PROXY_HOPS || undefined,
   email: {
     mailer: config.SENDGRID_API_KEY ? new SendGridMailer(config.SENDGRID_API_KEY) : null,
     fromAddress: config.EMAIL_FROM_ADDRESS ?? null,

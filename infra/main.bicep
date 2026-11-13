@@ -132,6 +132,7 @@ var appEnv = secretsReady
   ? [
       { name: 'NODE_ENV', value: 'production' }
       { name: 'LOG_LEVEL', value: 'info' }
+      { name: 'TRUST_PROXY_HOPS', value: '1' }
       { name: 'DATABASE_URL', secretRef: 'database-url' }
       { name: 'CLERK_SECRET_KEY', secretRef: 'clerk-secret-key' }
       { name: 'CLERK_AUTHORIZED_PARTIES', value: clerkAuthorizedParties }
