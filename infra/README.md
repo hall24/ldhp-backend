@@ -83,3 +83,7 @@ Do this per environment, testing on a throwaway Neon branch first:
 5. Rollback: put the previous `database-url` value back and re-run deploy-dev.
 
 Delete the test branch afterwards. Never paste the password in chat or commit it.
+
+`scripts/sql/app-role-grants.sql` re-applies the same grants (plus `CONNECT` and hiding Drizzle's migration
+table) if you ever need to repair them; running it is optional and safe to repeat. Don't create `ldhp_app` under
+Console > Roles: the migration already created it.

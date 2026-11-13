@@ -8,8 +8,13 @@
 --                 update or delete audit events.
 --
 -- Steps (per Neon branch, e.g. dev, later production):
---   1. Neon console > Branch > Roles > New role "ldhp_app". Copy the password it shows.
---   2. Run this file in the Neon SQL editor on that branch, connected as neondb_owner.
+--   1. The role already exists: migration 0007_app_role.sql creates ldhp_app without login
+--      and applies these same grants on every deploy. Turn login on in the Neon SQL editor
+--      (as neondb_owner) with a password from your password manager:
+--        ALTER ROLE ldhp_app WITH LOGIN PASSWORD '<32+ random letters and digits>';
+--      (Don't create it again under Console > Roles; that fails because it exists.)
+--   2. Optional: run this file too. It re-applies the grants, adds CONNECT, and hides
+--      Drizzle's migration table from the app. Safe to run again.
 --   3. Build the POOLED connection string for ldhp_app (Connect > role ldhp_app > pooled)
 --      and save it as a new version of Key Vault secret database-url. Keep
 --      database-url-unpooled on neondb_owner.

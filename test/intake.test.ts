@@ -231,6 +231,44 @@ describe('intake queue (staff)', () => {
     expect(closed).toMatchObject({ actorAccountId: t.SEED.staffA.id, after: { status: 'scheduled_externally' } });
   });
 
+  it('saves staff notes without changing status, keeps them, and hides them from the customer', async () => {
+    const { intake_request, link_token } = await newLink();
+    const id = intake_request.id;
+    await respond(link_token, { response: 'request_service' });
+    const save = (staff_notes: string | null) =>
+      t.app.inject({ method: 'PUT', url: `/v1/intake-requests/${id}/notes`, headers: staff(), payload: { staff_notes } });
+
+    const r1 = await save('Called, wants Tuesday AM');
+    expect(r1.statusCode).toBe(200);
+    expect(r1.json()).toMatchObject({
+      status: 'received',
+      staff_notes: 'Called, wants Tuesday AM',
+      staff_notes_updated_by: t.SEED.staffA.id,
+    });
+    await save('Called, wants Tuesday AM'); // autosave with no change
+    const detail = await t.app.inject({ method: 'GET', url: `/v1/intake-requests/${id}`, headers: staff() });
+    expect(detail.json()).toMatchObject({ status: 'received', staff_notes: 'Called, wants Tuesday AM' });
+
+    const notesAudit = await t.db
+      .select()
+      .from(auditEvents)
+      .where(and(eq(auditEvents.action, 'intake.notes_updated'), eq(auditEvents.recordId, id)));
+    expect(notesAudit).toHaveLength(1);
+    expect(JSON.stringify(notesAudit)).not.toContain('Tuesday');
+    expect(JSON.stringify((await view(link_token)).json())).not.toContain('Tuesday');
+
+    // A status change keeps the notes; blank clears them.
+    await t.app.inject({ method: 'PATCH', url: `/v1/intake-requests/${id}`, headers: staff(), payload: { status: 'contacted' } });
+    expect((await t.app.inject({ method: 'GET', url: `/v1/intake-requests/${id}`, headers: staff() })).json().staff_notes).toBe(
+      'Called, wants Tuesday AM',
+    );
+    expect((await save('   ')).json().staff_notes).toBeNull();
+
+    const other = t.as(t.SEED.ownerB, t.SEED.orgB);
+    const cross = await t.app.inject({ method: 'PUT', url: `/v1/intake-requests/${id}/notes`, headers: other, payload: { staff_notes: 'x' } });
+    expect(cross.statusCode).toBe(404);
+  });
+
   it("can't see or change another org's requests", async () => {
     const { intake_request } = await newLink();
     const other = t.as(t.SEED.ownerB, t.SEED.orgB);

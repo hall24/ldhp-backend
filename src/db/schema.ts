@@ -364,6 +364,10 @@ export const intakeRequests = pgTable(
     respondedAt: timestamp('responded_at', { withTimezone: true }),
     statusChangedBy: uuid('status_changed_by').references(() => accounts.id),
     statusChangedAt: timestamp('status_changed_at', { withTimezone: true }),
+    /** Staff's working notes on the request (editable any time, autosaved). Never shown to the customer. */
+    staffNotes: text('staff_notes'),
+    staffNotesUpdatedAt: timestamp('staff_notes_updated_at', { withTimezone: true }),
+    staffNotesUpdatedBy: uuid('staff_notes_updated_by').references(() => accounts.id),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
