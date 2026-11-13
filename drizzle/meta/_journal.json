@@ -50,6 +50,13 @@
       "when": 1794348838588,
       "tag": "0006_booking_and_job_values",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794370123043,
+      "tag": "0007_app_role",
+      "breakpoints": true
     }
   ]
 }

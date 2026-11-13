@@ -19,7 +19,7 @@ async function pgError(p: Promise<unknown>): Promise<string> {
 }
 let close: () => Promise<void>;
 beforeAll(async () => {
-  ({ db, close } = await createTestDb());
+  ({ db, close } = await createTestDb({ as: 'owner' }));
   await recordAudit(db, { actor: { type: 'system', accountId: null }, organizationId: null, action: 'test.event' });
 });
 afterAll(async () => close());
